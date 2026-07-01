@@ -107,27 +107,27 @@
 
 | Module | Business action | Endpoint | Reason |
 | ------ | --------------- | -------- | ------ |
-| AuthModule | Зарегистрироваться | `POST /api/v1/auth/registration` | |
-| AuthModule | Войти в систему | `POST /api/v1/auth/login` | |
-| UsersModule | Получить свой профиль | `GET /api/v1/users/me` | |
-| UsersModule | Изменить свой профиль | `PATCH /api/v1/users/me` | |
-| OrganizationsModule | Получить список своих организаций | `GET /api/v1/organizations` | |
-| OrganizationsModule | Получить организацию | `GET /api/v1/organizations/:organizationId` | |
-| MembershipsModule | Получить список участников | `GET /api/v1/organizations/:organizationId/memberships` | |
-| MembershipsModule | Получить участника | `GET /api/v1/memberships/:membershipId` | |
-| ProjectsModule | Получить список проектов | `GET /api/v1/organizations/:organizationId/projects` | |
-| ProjectsModule | Получить проект | `GET /api/v1/projects/:projectId` | |
-| EnvironmentsModule | Получить список environments | `GET /api/v1/projects/:projectId/environments` | |
-| EnvironmentsModule | Получить environment | `GET /api/v1/environments/:environmentId` | |
-| ReleasesModule | Получить список releases | `GET /api/v1/projects/:projectId/releases` | |
-| ReleasesModule | Получить release | `GET /api/v1/releases/:releaseId` | |
-| ReleasesModule | Получить список release tasks | `GET /api/v1/releases/:releaseId/release-tasks` | |
-| ChecklistModule | Получить список checklist items | `GET /api/v1/releases/:releaseId/checklist-items` | |
-| ApprovalsModule | Получить список approvals | `GET /api/v1/releases/:releaseId/approvals` | |
-| CommentsModule | Получить список comments | `GET /api/v1/releases/:releaseId/comments` | |
-| AuditModule | Получить audit events организации | `GET /api/v1/organizations/:organizationId/audit-events` | |
-| AuditModule | Получить audit events проекта | `GET /api/v1/projects/:projectId/audit-events` | |
-| AuditModule | Получить audit events релиза | `GET /api/v1/releases/:releaseId/audit-events` | |
-| NotificationsModule | Получить свои notifications | `GET /api/v1/notifications` | |
-| NotificationsModule | Отметить notification прочитанным | `PATCH /api/v1/notifications/:notificationId/read` | |
-| NotificationsModule | Отметить все notifications прочитанными | `PATCH /api/v1/notifications/read-all` | |
+| AuthModule | Зарегистрироваться | `POST /api/v1/auth/registration` | Пользователь ещё не находится в контексте организации/проекта; событие не относится к доменному audit trail. |
+| AuthModule | Войти в систему | `POST /api/v1/auth/login` | Login не меняет доменную модель; это security-событие, а не бизнес-событие. |
+| UsersModule | Получить свой профиль | `GET /api/v1/users/me` | GET-запрос не меняет состояние системы. |
+| UsersModule | Изменить свой профиль | `PATCH /api/v1/users/me` | Изменение профиля не влияет на organization/project/release; для MVP достаточно `updated_at` на User. |
+| OrganizationsModule | Получить список своих организаций | `GET /api/v1/organizations` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| OrganizationsModule | Получить организацию | `GET /api/v1/organizations/:organizationId` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| MembershipsModule | Получить список участников | `GET /api/v1/organizations/:organizationId/memberships` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| MembershipsModule | Получить участника | `GET /api/v1/memberships/:membershipId` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| ProjectsModule | Получить список проектов | `GET /api/v1/organizations/:organizationId/projects` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| ProjectsModule | Получить проект | `GET /api/v1/projects/:projectId` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| EnvironmentsModule | Получить список environments | `GET /api/v1/projects/:projectId/environments` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| EnvironmentsModule | Получить environment | `GET /api/v1/environments/:environmentId` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| ReleasesModule | Получить список releases | `GET /api/v1/projects/:projectId/releases` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| ReleasesModule | Получить release | `GET /api/v1/releases/:releaseId` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| ReleasesModule | Получить список release tasks | `GET /api/v1/releases/:releaseId/release-tasks` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| ChecklistModule | Получить список checklist items | `GET /api/v1/releases/:releaseId/checklist-items` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| ApprovalsModule | Получить список approvals | `GET /api/v1/releases/:releaseId/approvals` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| CommentsModule | Получить список comments | `GET /api/v1/releases/:releaseId/comments` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| AuditModule | Получить audit events организации | `GET /api/v1/organizations/:organizationId/audit-events` | Чтение audit log не должно создавать новый AuditEvent. |
+| AuditModule | Получить audit events проекта | `GET /api/v1/projects/:projectId/audit-events` | Чтение audit log не должно создавать новый AuditEvent. |
+| AuditModule | Получить audit events релиза | `GET /api/v1/releases/:releaseId/audit-events` | Чтение audit log не должно создавать новый AuditEvent. |
+| NotificationsModule | Получить свои notifications | `GET /api/v1/notifications` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
+| NotificationsModule | Отметить notification прочитанным | `PATCH /api/v1/notifications/:notificationId/read` | Изменяет пользовательское UI-состояние, а не доменную модель organization/project/release. |
+| NotificationsModule | Отметить все notifications прочитанными | `PATCH /api/v1/notifications/read-all` | Изменяет пользовательское UI-состояние, а не доменную модель organization/project/release. |
