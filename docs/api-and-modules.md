@@ -42,9 +42,6 @@ LoginDto
 - `GET /api/v1/users/me`
 - `PATCH /api/v1/users/me`
 
-**Важно:**
-Глобальный `GET /api/v1/users` не используется, чтобы не нарушать изоляцию SaaS между организациями. Пользователи в контексте организации доступны через `GET /api/v1/organizations/:organizationId/memberships`.
-
 **DTO:**
 
 UserDto
@@ -290,6 +287,7 @@ ReleaseListItemDto
 CreateReleaseTaskDto
 
 - key
+- type
 - url?
 - name
 - description
@@ -297,6 +295,7 @@ CreateReleaseTaskDto
 UpdateReleaseTaskDto
 
 - key?
+- type?
 - url?
 - name?
 - description?
@@ -305,6 +304,7 @@ ReleaseTaskDto
 
 - id
 - key
+- type
 - url
 - name
 - description
