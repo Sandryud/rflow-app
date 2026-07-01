@@ -90,6 +90,11 @@
 | Получить release | A | A | A | A | D | Release доступен участникам организации. |
 | Изменить release | A | A | A | D | D | Release может изменить Owner, Admin или Developer; только пока release в статусе draft. |
 | Удалить release | A | A | A | D | D | Release может удалить Owner, Admin или Developer; только пока release в статусе draft. |
+| Отправить release на review | A | A | A | D | D | Статус меняется только через бизнес-команду; доступно Owner, Admin или Developer. |
+| Approve release | A | A | D | A | D | Approve доступен Owner, Admin и назначенным reviewers. |
+| Reject release | A | A | D | A | D | Reject доступен Owner, Admin и назначенным reviewers. |
+| Mark release as released | A | A | D | D | D | Финальный release выполняет Owner или Admin после необходимых approvals. |
+| Cancel release | A | A | A | D | D | Cancel доступен Owner, Admin или Developer до финального release. |
 | Создать release task | A | A | A | D | D | Release task может создать Owner, Admin или Developer; только пока release в статусе draft. |
 | Получить список release tasks | A | A | A | A | D | Список release tasks доступен участникам организации. |
 | Изменить release task | A | A | A | D | D | Release task может изменить Owner, Admin или Developer; только пока release в статусе draft. |

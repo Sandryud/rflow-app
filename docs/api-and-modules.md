@@ -31,7 +31,7 @@ LoginDto
 ### UsersModule
 
 **Ответственность:**
-Модуль отвечает за пользователей всего проекта.
+Модуль отвечает за текущего пользователя и его профиль.
 
 **Сущности:**
 
@@ -41,7 +41,9 @@ LoginDto
 
 - `GET /api/v1/users/me`
 - `PATCH /api/v1/users/me`
-- `GET /api/v1/users`
+
+**Важно:**
+Глобальный `GET /api/v1/users` не используется, чтобы не нарушать изоляцию SaaS между организациями. Пользователи в контексте организации доступны через `GET /api/v1/organizations/:organizationId/memberships`.
 
 **DTO:**
 
@@ -52,12 +54,6 @@ UserDto
 - email
 - created_at
 - updated_at
-
-UserListItemDto
-
-- id
-- name
-- email
 
 UpdateProfileDto
 
@@ -239,10 +235,18 @@ EnvironmentDto
 - `PATCH /api/v1/releases/:releaseId`
 - `DELETE /api/v1/releases/:releaseId`
 - `POST /api/v1/projects/:projectId/releases`
+- `POST /api/v1/releases/:releaseId/request-review`
+- `POST /api/v1/releases/:releaseId/approve`
+- `POST /api/v1/releases/:releaseId/reject`
+- `POST /api/v1/releases/:releaseId/release`
+- `POST /api/v1/releases/:releaseId/cancel`
 - `POST /api/v1/releases/:releaseId/release-tasks`
 - `GET /api/v1/releases/:releaseId/release-tasks`
 - `PATCH /api/v1/release-tasks/:releaseTaskId`
 - `DELETE /api/v1/release-tasks/:releaseTaskId`
+
+**Важно:**
+`PATCH /api/v1/releases/:releaseId` не изменяет `status`. Статус релиза меняется только через отдельные бизнес-команды: `request-review`, `approve`, `reject`, `release`, `cancel`.
 
 **DTO:**
 
@@ -286,12 +290,14 @@ ReleaseListItemDto
 CreateReleaseTaskDto
 
 - key
+- url?
 - name
 - description
 
 UpdateReleaseTaskDto
 
 - key?
+- url?
 - name?
 - description?
 
@@ -299,6 +305,7 @@ ReleaseTaskDto
 
 - id
 - key
+- url
 - name
 - description
 - created_at
