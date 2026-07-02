@@ -142,17 +142,14 @@ ReleasesModule -> ApprovalsModule
 ReleasesModule -> AuditModule
 ReleasesModule -> NotificationsModule
 
-ApprovalsModule -> ReleasesModule
 ApprovalsModule -> MembershipsModule
 ApprovalsModule -> AuditModule
 ApprovalsModule -> NotificationsModule
 
-ChecklistModule -> ReleasesModule
 ChecklistModule -> MembershipsModule
 ChecklistModule -> AuditModule
 ChecklistModule -> NotificationsModule
 
-CommentsModule -> ReleasesModule
 CommentsModule -> AuditModule
 CommentsModule -> NotificationsModule
 ```
