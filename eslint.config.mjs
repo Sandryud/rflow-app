@@ -5,6 +5,25 @@ import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+const layerAliasImportRestrictions = [
+  {
+    group: ['src/**'],
+    message:
+      'Use layer aliases instead: @modules, @common, @database, @config.',
+  },
+  {
+    group: [
+      '**/index',
+      '**/index.ts',
+      '@modules/**/index',
+      '@common/**/index',
+      '@database/**/index',
+      '@config/**/index',
+    ],
+    message: 'Index files are not used. Import the target file directly.',
+  },
+];
+
 export default tseslint.config(
   {
     ignores: ['eslint.config.mjs'],
@@ -60,45 +79,7 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          patterns: [
-            {
-              group: [
-                'src/modules/*/dto/*',
-                './dto/*',
-                '../dto/*',
-                '../src/modules/*/dto/*',
-              ],
-              message: 'Use the DTO public API instead, for example ./dto.',
-            },
-            {
-              group: [
-                'src/modules/*/*',
-                './modules/*/*',
-                '../modules/*/*',
-                '../src/modules/*/*',
-              ],
-              message:
-                'Use the feature public API instead, for example src/modules/auth.',
-            },
-            {
-              group: [
-                'src/database/*',
-                './database/*',
-                '../database/*',
-                '../src/database/*',
-              ],
-              message: 'Use the database public API instead: src/database.',
-            },
-            {
-              group: [
-                'src/config/*',
-                './config/*',
-                '../config/*',
-                '../src/config/*',
-              ],
-              message: 'Use the config public API instead: src/config.',
-            },
-          ],
+          patterns: layerAliasImportRestrictions,
         },
       ],
       'simple-import-sort/imports': [
@@ -107,13 +88,34 @@ export default tseslint.config(
           groups: [
             ['^\\u0000'],
             ['^@?\\w'],
-            ['^src(/.*|$)', '^@/.*'],
-            ['^\\.'],
+            [
+              '^@(config|database|common)(/.*)?$',
+              '^@modules(/.*)?$',
+              '^\\.',
+            ],
           ],
         },
       ],
       'simple-import-sort/exports': 'error',
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
+    },
+  },
+  {
+    files: ['src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['../**'],
+              message:
+                'Use layer aliases instead of parent-directory imports inside src.',
+            },
+            ...layerAliasImportRestrictions,
+          ],
+        },
+      ],
     },
   },
 );
