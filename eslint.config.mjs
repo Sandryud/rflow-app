@@ -57,6 +57,50 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/require-await': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                'src/modules/*/dto/*',
+                './dto/*',
+                '../dto/*',
+                '../src/modules/*/dto/*',
+              ],
+              message: 'Use the DTO public API instead, for example ./dto.',
+            },
+            {
+              group: [
+                'src/modules/*/*',
+                './modules/*/*',
+                '../modules/*/*',
+                '../src/modules/*/*',
+              ],
+              message:
+                'Use the feature public API instead, for example src/modules/auth.',
+            },
+            {
+              group: [
+                'src/database/*',
+                './database/*',
+                '../database/*',
+                '../src/database/*',
+              ],
+              message: 'Use the database public API instead: src/database.',
+            },
+            {
+              group: [
+                'src/config/*',
+                './config/*',
+                '../config/*',
+                '../src/config/*',
+              ],
+              message: 'Use the config public API instead: src/config.',
+            },
+          ],
+        },
+      ],
       'simple-import-sort/imports': [
         'error',
         {
