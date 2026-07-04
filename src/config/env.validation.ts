@@ -1,6 +1,6 @@
 import * as Joi from 'joi';
 
-const envValidationSchema = Joi.object({
+export const envValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')
     .default('development'),
@@ -11,6 +11,6 @@ const envValidationSchema = Joi.object({
   POSTGRES_PASSWORD: Joi.string().required(),
   POSTGRES_DB: Joi.string().required(),
   DATABASE_URL: Joi.string().uri().required(),
+  JWT_ACCESS_EXPIRES_IN: Joi.string().required(),
+  JWT_SECRET: Joi.string().required(),
 });
-
-export default envValidationSchema;

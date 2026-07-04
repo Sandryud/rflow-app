@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import appConfig from './config/app.config';
-import dbConfig from './config/database.config';
-import envValidationSchema from './config/env.validation';
+
 import { PrismaModule } from './database/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
@@ -16,12 +14,13 @@ import { ApprovalsModule } from './modules/approvals/approvals.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { appConfig, authConfig, dbConfig, envValidationSchema } from './config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, dbConfig],
+      load: [appConfig, dbConfig, authConfig],
       validationSchema: envValidationSchema,
     }),
     PrismaModule,

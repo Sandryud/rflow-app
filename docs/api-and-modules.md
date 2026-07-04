@@ -1,4 +1,3 @@
-
 ## Modules
 
 ### AuthModule
@@ -13,11 +12,11 @@
 **Основные endpoints:**
 
 - `/api/v1/auth/login`
-- `/api/v1/auth/registration`
+- `/api/v1/auth/register`
 
 **DTO:**
 
-RegistrationDto
+RegisterDto
 
 - name
 - email
