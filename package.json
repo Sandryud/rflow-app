@@ -17,6 +17,8 @@
     "typecheck": "tsc --noEmit",
     "prepare": "husky",
     "test": "jest",
+    "test:unit": "jest --testRegex \"^(?!.*\\.integration\\.spec\\.ts$).*\\.spec\\.ts$\"",
+    "test:integration": "jest --testRegex \".*\\.integration\\.spec\\.ts$\"",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
