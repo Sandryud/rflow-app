@@ -10,6 +10,7 @@ const envValidationSchema = Joi.object({
   POSTGRES_USER: Joi.string().required(),
   POSTGRES_PASSWORD: Joi.string().required(),
   POSTGRES_DB: Joi.string().required(),
+  DATABASE_URL: Joi.string().uri().required(),
 });
 
 export default envValidationSchema;

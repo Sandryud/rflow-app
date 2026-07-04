@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import appConfig from './config/app.config';
 import dbConfig from './config/database.config';
 import envValidationSchema from './config/env.validation';
-import { DatabaseModule } from './database/database.module';
+import { PrismaModule } from './database/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { UsersModule } from './modules/users/users.module';
@@ -24,7 +24,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
       load: [appConfig, dbConfig],
       validationSchema: envValidationSchema,
     }),
-    DatabaseModule,
+    PrismaModule,
     AuthModule,
     UsersModule,
     OrganizationsModule,
