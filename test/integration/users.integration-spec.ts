@@ -1,7 +1,7 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
-import type { AuthRequest } from '@common/types/auth.types';
+import type { RequestWithUserType } from '@common/types/request.types';
 import { PrismaService } from '@database/prisma.service';
 import { UsersController } from '@modules/users/users.controller';
 import { UsersModule } from '@modules/users/users.module';
@@ -18,13 +18,13 @@ const currentUser = {
   email: 'jane@example.com',
 };
 
-const createAuthRequest = (userId: string): AuthRequest =>
+const createAuthRequest = (userId: string): RequestWithUserType =>
   ({
     user: {
       userId,
       email: currentUser.email,
     },
-  }) as AuthRequest;
+  }) as RequestWithUserType;
 
 const createPrismaMock = (): PrismaMock => ({
   user: {

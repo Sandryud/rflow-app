@@ -1,6 +1,6 @@
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 
-import { AuthRequest } from '@common/types/auth.types';
+import { RequestWithUserType } from '@common/types/request.types';
 import { JwtAuthGuard } from '@modules/auth/auth.jwt-guard';
 import { UsersService } from './users.service';
 
@@ -10,7 +10,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Get('/me')
-  async getUser(@Req() req: AuthRequest) {
+  async getUser(@Req() req: RequestWithUserType) {
     return this.usersService.getUser(req.user.userId);
   }
 }
