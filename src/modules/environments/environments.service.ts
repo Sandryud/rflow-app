@@ -84,7 +84,7 @@ export class EnvironmentsService {
 
     if (!this.allowedCreateEnvRoles.has(membership.role)) {
       throw new ForbiddenException(
-        'You do not have permission to create environment',
+        'You do not have permission to create environments',
       );
     }
 
