@@ -21,6 +21,7 @@ model User {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   memberships  Membership[]
+  releases     Release[]
 }
 
 enum MembershipRole {
@@ -65,6 +66,7 @@ model Project {
   updatedAt      DateTime      @updatedAt
   deletedAt      DateTime?
   environments   Environment[]
+  releases       Release[]
 
   @@unique([organizationId, name])
 }
@@ -80,6 +82,52 @@ model Environment {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
+  releases    Release[]
 
   @@unique([projectId, name])
+}
+
+enum ReleaseStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  RELEASED
+  CANCELLED
+}
+
+model Release {
+  id               String        @id @default(uuid())
+  version          String        @db.VarChar(50)
+  name             String        @db.VarChar(100)
+  description      String?       @db.VarChar(400)
+  status           ReleaseStatus @default(DRAFT)
+  createdByUserId  String
+  createdBy        User          @relation(fields: [createdByUserId], references: [id])
+  plannedReleaseAt DateTime?
+  projectId        String
+  environmentId    String
+  environment      Environment   @relation(fields: [environmentId], references: [id])
+  project          Project       @relation(fields: [projectId], references: [id])
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  deletedAt        DateTime?
+  releaseTasks     ReleaseTask[]
+
+  @@unique([projectId, version])
+}
+
+model ReleaseTask {
+  id          String   @id @default(uuid())
+  releaseId   String
+  release     Release  @relation(fields: [releaseId], references: [id])
+  name        String   @db.VarChar(200)
+  key         String   @db.VarChar(50)
+  description String?  @db.VarChar(400)
+  url         String?  @db.VarChar(400)
+  type        String?  @db.VarChar(50)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([releaseId, key])
 }
