@@ -1,98 +1,305 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# RFlow App
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend application built with NestJS, Prisma, PostgreSQL, JWT auth, and a feature-first module structure.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Scripts
 
 ```bash
-$ npm install
+npm run start:dev
+npm run lint
+npm run typecheck
+npm run test
 ```
 
-## Compile and run the project
+Useful focused test examples:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npx jest src/modules/auth/tests --runInBand
+npx jest src/modules/users/tests/users.service.spec.ts --runInBand
 ```
 
-## Run tests
+## Project Structure
+
+Application code lives in `src/`.
+
+```txt
+src/
+  common/       Shared types, transformers, helpers.
+  config/       Application, auth, database, and env validation config.
+  database/     Prisma module/service.
+  modules/      Feature modules.
+```
+
+Feature modules live in `src/modules/<feature>/`. A mature module usually follows this shape:
+
+```txt
+src/modules/projects/
+  dto/
+    create-project.dto.ts
+
+  projects.controller.ts
+  projects.module.ts
+  projects.service.ts
+  projects.repository.ts
+  projects.policy.ts
+  projects.select.ts
+  projects.types.ts
+```
+
+Not every module needs every file. Add a file only when the module has that responsibility.
+
+## Module Responsibilities
+
+### `*.module.ts`
+
+Nest dependency boundary for the feature.
+
+Use it to register:
+
+- controllers;
+- services;
+- repositories;
+- policies;
+- feature-specific helpers.
+
+Example:
+
+```ts
+@Module({
+  imports: [PrismaModule],
+  controllers: [ProjectsController],
+  providers: [ProjectsService, ProjectsRepository, ProjectsPolicy],
+})
+export class ProjectsModule {}
+```
+
+### `*.controller.ts`
+
+HTTP layer only.
+
+Controllers should:
+
+- define routes;
+- read `@Param()`, `@Body()`, `@Req()`;
+- apply guards;
+- call service methods.
+
+Controllers should not:
+
+- query Prisma directly;
+- check business permissions;
+- know Prisma `select` shapes;
+- hash passwords;
+- sign tokens.
+
+If every endpoint in a controller is protected, put the guard on the class:
+
+```ts
+@UseGuards(JwtAuthGuard)
+@Controller('users')
+export class UsersController {}
+```
+
+### `*.service.ts`
+
+Use case layer.
+
+Services describe what happens in an application scenario:
+
+- validate required runtime context;
+- call repositories;
+- call policies;
+- call feature helpers;
+- throw application exceptions;
+- return typed responses.
+
+Services should avoid long Prisma queries. Put those in repositories.
+
+### `*.repository.ts`
+
+Database access layer.
+
+Repositories own Prisma calls:
+
+- `findUnique`;
+- `findFirst`;
+- `findMany`;
+- `create`;
+- `update`;
+- Prisma `where`;
+- Prisma `select`.
+
+Repositories should not contain business permission decisions. They can query membership data, but the decision belongs to a policy or service.
+
+### `*.policy.ts`
+
+Permission and role rules.
+
+Use a policy when the module has role-based behavior:
+
+```ts
+assertCanCreateProject(role: MembershipRole) {
+  if (!this.allowedCreateProjectRoles.has(role)) {
+    throw new ForbiddenException(
+      'You do not have permission to create projects',
+    );
+  }
+}
+```
+
+Do not create a policy file when there are no permission rules yet.
+
+### `*.select.ts`
+
+Reusable Prisma response shapes.
+
+Use `select` constants to keep API responses consistent:
+
+```ts
+export const projectSelect = {
+  id: true,
+  name: true,
+  description: true,
+  organizationId: true,
+  createdAt: true,
+} satisfies Prisma.ProjectSelect;
+```
+
+Services and controllers should not duplicate these shapes.
+
+### `*.types.ts`
+
+Service contract types.
+
+Store service input params and service response types here:
+
+```ts
+export type ProjectResponse = Prisma.ProjectGetPayload<{
+  select: typeof projectSelect;
+}>;
+
+export type GetProjectsParams = {
+  userId: string;
+  organizationId: string;
+};
+
+export type GetProjectsResponse = ProjectResponse[];
+
+export type CreateProjectParams = {
+  userId: string;
+  organizationId: string;
+  dto: CreateProjectDto;
+};
+
+export type CreateProjectResponse = ProjectResponse;
+```
+
+Service methods should use these explicitly:
+
+```ts
+async getProjects(params: GetProjectsParams): Promise<GetProjectsResponse> {}
+```
+
+Naming rules:
+
+- use `*Params` for service input;
+- use `*Response` for service output;
+- derive entity responses from Prisma `select` when possible;
+- use explicit object types when a mapper changes the shape.
+
+Avoid generic names like `Response`. Prefer domain names:
+
+- `ProjectResponse`;
+- `LoginResponse`;
+- `ReleaseTaskResponse`;
+- `GetOrganizationsResponse`.
+
+### `*.mapper.ts`
+
+Response transformation layer.
+
+Use a mapper when the returned shape differs from the database shape.
+
+Example: organizations are selected with `memberships`, but the API returns `role`:
+
+```ts
+export const mapOrganizationWithRole = ({
+  memberships,
+  ...organization
+}: OrganizationWithMembershipRole): OrganizationResponse => ({
+  ...organization,
+  role: memberships?.[0]?.role,
+});
+```
+
+For arrays, prefer idiomatic mapping while logic is simple:
+
+```ts
+return organizations.map(mapOrganizationWithRole);
+```
+
+Add a plural mapper only when list transformation becomes non-trivial or reused.
+
+### `dto/*.dto.ts`
+
+Input DTOs for HTTP payloads.
+
+DTOs are classes because `class-validator` and `class-transformer` work at runtime:
+
+```ts
+export class CreateProjectDto {
+  @IsString()
+  @Transform(trimStringTransformer)
+  @IsNotEmpty()
+  @MaxLength(100)
+  name!: string;
+}
+```
+
+Input normalization belongs at the DTO boundary when possible. For example, trim strings with `trimStringTransformer` in DTOs instead of calling `trim()` in services.
+
+Service response types should not be named `Dto` unless they are real runtime DTO classes used for serialization or OpenAPI docs.
+
+## Current Module Status
+
+Active modules use the structure above:
+
+- `auth`
+- `users`
+- `organizations`
+- `projects`
+- `environments`
+- `releases`
+
+Placeholder modules currently contain only a Nest module file:
+
+- `approvals`
+- `audit`
+- `checklist`
+- `comments`
+- `memberships`
+- `notifications`
+
+Add structure to placeholder modules when they get real use cases.
+
+## Design Rules
+
+- Keep controllers thin.
+- Keep services readable as use cases.
+- Keep Prisma in repositories.
+- Keep role checks in policies.
+- Keep response shapes in `*.select.ts`.
+- Keep service contracts in `*.types.ts`.
+- Keep input validation and simple input normalization in DTOs.
+- Add mappers only when response shape differs from database shape.
+- Avoid abstractions before the module has the responsibility.
+
+## Validation Before Commit
+
+Run these before committing backend changes:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run lint
+npm run typecheck
+npm run test
 ```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
