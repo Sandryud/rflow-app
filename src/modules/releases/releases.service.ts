@@ -6,29 +6,20 @@ import {
 import { Prisma } from 'generated/prisma/client';
 import { ReleaseStatus } from 'generated/prisma/enums';
 
-import { CreateReleaseDto, CreateReleaseTaskDto } from './dto/releases.dto';
 import { ReleasesPolicy } from './releases.policy';
 import { ReleasesRepository } from './releases.repository';
-
-type UserParams = {
-  userId: string;
-};
-
-type ProjectParams = UserParams & {
-  projectId: string;
-};
-
-type CreateReleaseParams = ProjectParams & {
-  dto: CreateReleaseDto;
-};
-
-type GetReleaseParams = UserParams & {
-  releaseId: string;
-};
-
-type CreateReleaseTask = GetReleaseParams & {
-  dto: CreateReleaseTaskDto;
-};
+import type {
+  CreateReleaseParams,
+  CreateReleaseResponse,
+  CreateReleaseTaskParams,
+  CreateReleaseTaskResponse,
+  GetProjectReleasesParams,
+  GetProjectReleasesResponse,
+  GetReleaseParams,
+  GetReleaseResponse,
+  GetReleaseTasksParams,
+  GetReleaseTasksResponse,
+} from './releases.types';
 
 @Injectable()
 export class ReleasesService {
@@ -37,7 +28,11 @@ export class ReleasesService {
     private readonly releasesPolicy: ReleasesPolicy,
   ) {}
 
-  async createRelease({ userId, dto, projectId }: CreateReleaseParams) {
+  async createRelease({
+    userId,
+    dto,
+    projectId,
+  }: CreateReleaseParams): Promise<CreateReleaseResponse> {
     const membership = await this.releasesRepository.findProjectMembership(
       userId,
       projectId,
@@ -88,7 +83,10 @@ export class ReleasesService {
     }
   }
 
-  async getRelease({ userId, releaseId }: GetReleaseParams) {
+  async getRelease({
+    userId,
+    releaseId,
+  }: GetReleaseParams): Promise<GetReleaseResponse> {
     const membership = await this.releasesRepository.findReleaseMembership(
       userId,
       releaseId,
@@ -107,7 +105,10 @@ export class ReleasesService {
     return release;
   }
 
-  async getProjectReleases({ userId, projectId }: ProjectParams) {
+  async getProjectReleases({
+    userId,
+    projectId,
+  }: GetProjectReleasesParams): Promise<GetProjectReleasesResponse> {
     const membership = await this.releasesRepository.findProjectMembership(
       userId,
       projectId,
@@ -123,7 +124,11 @@ export class ReleasesService {
     return releases;
   }
 
-  async createReleaseTask({ releaseId, dto, userId }: CreateReleaseTask) {
+  async createReleaseTask({
+    releaseId,
+    dto,
+    userId,
+  }: CreateReleaseTaskParams): Promise<CreateReleaseTaskResponse> {
     const membership = await this.releasesRepository.findReleaseMembership(
       userId,
       releaseId,
@@ -170,7 +175,10 @@ export class ReleasesService {
     }
   }
 
-  async getReleaseTasks({ releaseId, userId }: GetReleaseParams) {
+  async getReleaseTasks({
+    releaseId,
+    userId,
+  }: GetReleaseTasksParams): Promise<GetReleaseTasksResponse> {
     const membership = await this.releasesRepository.findReleaseMembership(
       userId,
       releaseId,

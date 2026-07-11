@@ -1,17 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { CreateEnvironmentDto } from './dto/create-environment.dto';
 import { EnvironmentsPolicy } from './environments.policy';
 import { EnvironmentsRepository } from './environments.repository';
-
-type RequestParams = {
-  userId: string;
-  projectId: string;
-};
-
-type CreateEnvironmentParams = {
-  dto: CreateEnvironmentDto;
-} & RequestParams;
+import type {
+  CreateEnvironmentParams,
+  CreateEnvironmentResponse,
+  GetEnvironmentsParams,
+  GetEnvironmentsResponse,
+} from './environments.types';
 
 @Injectable()
 export class EnvironmentsService {
@@ -20,7 +16,10 @@ export class EnvironmentsService {
     private readonly environmentsPolicy: EnvironmentsPolicy,
   ) {}
 
-  async getEnvironments({ userId, projectId }: RequestParams) {
+  async getEnvironments({
+    userId,
+    projectId,
+  }: GetEnvironmentsParams): Promise<GetEnvironmentsResponse> {
     const project = await this.environmentsRepository.findProjectForUser(
       userId,
       projectId,
@@ -36,7 +35,11 @@ export class EnvironmentsService {
     return envs;
   }
 
-  async createEnvironment({ dto, userId, projectId }: CreateEnvironmentParams) {
+  async createEnvironment({
+    dto,
+    userId,
+    projectId,
+  }: CreateEnvironmentParams): Promise<CreateEnvironmentResponse> {
     const membership = await this.environmentsRepository.findProjectMembership(
       userId,
       projectId,
