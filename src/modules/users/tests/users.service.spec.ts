@@ -1,12 +1,10 @@
 import { UnauthorizedException } from '@nestjs/common';
 
-import type { PrismaService } from '@database/prisma.service';
+import type { UsersRepository } from '@modules/users/users.repository';
 import { UsersService } from '@modules/users/users.service';
 
-type PrismaMock = {
-  user: {
-    findUnique: jest.Mock;
-  };
+type UsersRepositoryMock = {
+  findUserById: jest.Mock;
 };
 
 const currentUser = {
@@ -15,17 +13,17 @@ const currentUser = {
   email: 'jane@example.com',
 };
 
-const createPrismaMock = (): PrismaMock => ({
-  user: {
-    findUnique: jest.fn(),
-  },
+const createUsersRepositoryMock = (): UsersRepositoryMock => ({
+  findUserById: jest.fn(),
 });
 
 const createService = () => {
-  const prisma = createPrismaMock();
-  const service = new UsersService(prisma as unknown as PrismaService);
+  const usersRepository = createUsersRepositoryMock();
+  const service = new UsersService(
+    usersRepository as unknown as UsersRepository,
+  );
 
-  return { prisma, service };
+  return { service, usersRepository };
 };
 
 describe('UsersService', () => {
@@ -40,8 +38,8 @@ describe('UsersService', () => {
   });
 
   it('throws UnauthorizedException when current user does not exist', async () => {
-    const { prisma, service } = createService();
-    prisma.user.findUnique.mockResolvedValue(null);
+    const { service, usersRepository } = createService();
+    usersRepository.findUserById.mockResolvedValue(null);
 
     await expect(service.getUser('missing-user-id')).rejects.toThrow(
       UnauthorizedException,
@@ -49,23 +47,20 @@ describe('UsersService', () => {
   });
 
   it('returns current user public data when user exists', async () => {
-    const { prisma, service } = createService();
-    prisma.user.findUnique.mockResolvedValue(currentUser);
+    const { service, usersRepository } = createService();
+    usersRepository.findUserById.mockResolvedValue(currentUser);
 
     const result = await service.getUser('user-id');
 
     expect(result).toEqual(currentUser);
   });
 
-  it('selects only public user fields when fetching current user', async () => {
-    const { prisma, service } = createService();
-    prisma.user.findUnique.mockResolvedValue(currentUser);
+  it('fetches current user by id', async () => {
+    const { service, usersRepository } = createService();
+    usersRepository.findUserById.mockResolvedValue(currentUser);
 
     await service.getUser('user-id');
 
-    expect(prisma.user.findUnique).toHaveBeenCalledWith({
-      where: { id: 'user-id' },
-      select: { email: true, id: true, name: true },
-    });
+    expect(usersRepository.findUserById).toHaveBeenCalledWith('user-id');
   });
 });

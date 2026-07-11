@@ -1,18 +1,15 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 
-import { PrismaService } from '@database/prisma.service';
+import { UsersRepository } from './users.repository';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly usersRepository: UsersRepository) {}
 
   async getUser(id: string) {
     if (!id) throw new UnauthorizedException();
 
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-      select: { email: true, id: true, name: true },
-    });
+    const user = await this.usersRepository.findUserById(id);
 
     if (!user) throw new UnauthorizedException('Current user not found');
 
