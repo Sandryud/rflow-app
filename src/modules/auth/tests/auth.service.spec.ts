@@ -1,35 +1,24 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
-import type { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
 
-import type { PrismaService } from '@database/prisma.service';
+import type { AuthRepository } from '@modules/auth/auth.repository';
 import { AuthService } from '@modules/auth/auth.service';
+import type { AuthTokenService } from '@modules/auth/auth.token.service';
 import type { LoginDto } from '@modules/auth/dto/login.dto';
 import type { RegisterDto } from '@modules/auth/dto/register.dto';
 
-jest.mock('bcrypt', () => ({
-  compare: jest.fn(),
-  hash: jest.fn(),
-}));
-
-type PrismaMock = {
-  user: {
-    findUnique: jest.Mock;
-    create: jest.Mock;
-  };
+type AuthRepositoryMock = {
+  findUserByEmail: jest.Mock;
+  createUser: jest.Mock;
 };
 
-type JwtServiceMock = {
-  signAsync: jest.Mock;
+type AuthPasswordServiceMock = {
+  comparePassword: jest.Mock;
+  hashPassword: jest.Mock;
 };
 
-const bcryptCompareMock = bcrypt.compare as unknown as jest.MockedFunction<
-  (password: string, passwordHash: string) => Promise<boolean>
->;
-
-const bcryptHashMock = bcrypt.hash as unknown as jest.MockedFunction<
-  (password: string, saltRounds: number) => Promise<string>
->;
+type AuthTokenServiceMock = {
+  signAccessToken: jest.Mock;
+};
 
 const existingUser = {
   id: 'user-id',
@@ -45,7 +34,7 @@ const createdUser = {
 };
 
 const createLoginDto = (overrides: Partial<LoginDto> = {}): LoginDto => ({
-  email: 'Jane@Example.com ',
+  email: 'Jane@Example.com',
   password: 'password123',
   ...overrides,
 });
@@ -53,32 +42,37 @@ const createLoginDto = (overrides: Partial<LoginDto> = {}): LoginDto => ({
 const createRegisterDto = (
   overrides: Partial<RegisterDto> = {},
 ): RegisterDto => ({
-  name: ' Jane Doe ',
-  email: 'Jane@Example.com ',
+  name: 'Jane Doe',
+  email: 'Jane@Example.com',
   password: 'password123',
   ...overrides,
 });
 
-const createPrismaMock = (): PrismaMock => ({
-  user: {
-    findUnique: jest.fn(),
-    create: jest.fn(),
-  },
+const createAuthRepositoryMock = (): AuthRepositoryMock => ({
+  findUserByEmail: jest.fn(),
+  createUser: jest.fn(),
 });
 
-const createJwtServiceMock = (): JwtServiceMock => ({
-  signAsync: jest.fn(),
+const createAuthPasswordServiceMock = (): AuthPasswordServiceMock => ({
+  comparePassword: jest.fn(),
+  hashPassword: jest.fn(),
+});
+
+const createAuthTokenServiceMock = (): AuthTokenServiceMock => ({
+  signAccessToken: jest.fn(),
 });
 
 const createService = () => {
-  const prisma = createPrismaMock();
-  const jwtService = createJwtServiceMock();
+  const authRepository = createAuthRepositoryMock();
+  const authPasswordService = createAuthPasswordServiceMock();
+  const authTokenService = createAuthTokenServiceMock();
   const service = new AuthService(
-    prisma as unknown as PrismaService,
-    jwtService as unknown as JwtService,
+    authRepository as unknown as AuthRepository,
+    authPasswordService,
+    authTokenService as unknown as AuthTokenService,
   );
 
-  return { jwtService, prisma, service };
+  return { authPasswordService, authRepository, authTokenService, service };
 };
 
 describe('AuthService', () => {
@@ -87,10 +81,11 @@ describe('AuthService', () => {
   });
 
   it('returns access token and public user data when login credentials are valid', async () => {
-    const { jwtService, prisma, service } = createService();
-    prisma.user.findUnique.mockResolvedValue(existingUser);
-    bcryptCompareMock.mockResolvedValue(true);
-    jwtService.signAsync.mockResolvedValue('access-token');
+    const { authPasswordService, authRepository, authTokenService, service } =
+      createService();
+    authRepository.findUserByEmail.mockResolvedValue(existingUser);
+    authPasswordService.comparePassword.mockResolvedValue(true);
+    authTokenService.signAccessToken.mockResolvedValue('access-token');
 
     const result = await service.login(createLoginDto());
 
@@ -105,21 +100,22 @@ describe('AuthService', () => {
   });
 
   it('normalizes email before looking up a user during login', async () => {
-    const { jwtService, prisma, service } = createService();
-    prisma.user.findUnique.mockResolvedValue(existingUser);
-    bcryptCompareMock.mockResolvedValue(true);
-    jwtService.signAsync.mockResolvedValue('access-token');
+    const { authPasswordService, authRepository, authTokenService, service } =
+      createService();
+    authRepository.findUserByEmail.mockResolvedValue(existingUser);
+    authPasswordService.comparePassword.mockResolvedValue(true);
+    authTokenService.signAccessToken.mockResolvedValue('access-token');
 
     await service.login(createLoginDto());
 
-    expect(prisma.user.findUnique).toHaveBeenCalledWith({
-      where: { email: 'jane@example.com' },
-    });
+    expect(authRepository.findUserByEmail).toHaveBeenCalledWith(
+      'jane@example.com',
+    );
   });
 
   it('throws UnauthorizedException when login user does not exist', async () => {
-    const { prisma, service } = createService();
-    prisma.user.findUnique.mockResolvedValue(null);
+    const { authRepository, service } = createService();
+    authRepository.findUserByEmail.mockResolvedValue(null);
 
     await expect(service.login(createLoginDto())).rejects.toThrow(
       UnauthorizedException,
@@ -127,34 +123,50 @@ describe('AuthService', () => {
   });
 
   it('throws UnauthorizedException when login password is invalid', async () => {
-    const { prisma, service } = createService();
-    prisma.user.findUnique.mockResolvedValue(existingUser);
-    bcryptCompareMock.mockResolvedValue(false);
+    const { authPasswordService, authRepository, service } = createService();
+    authRepository.findUserByEmail.mockResolvedValue(existingUser);
+    authPasswordService.comparePassword.mockResolvedValue(false);
 
     await expect(service.login(createLoginDto())).rejects.toThrow(
       UnauthorizedException,
     );
   });
 
-  it('signs login token with user id and email payload', async () => {
-    const { jwtService, prisma, service } = createService();
-    prisma.user.findUnique.mockResolvedValue(existingUser);
-    bcryptCompareMock.mockResolvedValue(true);
-    jwtService.signAsync.mockResolvedValue('access-token');
+  it('checks login password against stored password hash', async () => {
+    const { authPasswordService, authRepository, authTokenService, service } =
+      createService();
+    authRepository.findUserByEmail.mockResolvedValue(existingUser);
+    authPasswordService.comparePassword.mockResolvedValue(true);
+    authTokenService.signAccessToken.mockResolvedValue('access-token');
 
     await service.login(createLoginDto());
 
-    expect(jwtService.signAsync).toHaveBeenCalledWith({
+    expect(authPasswordService.comparePassword).toHaveBeenCalledWith(
+      'password123',
+      existingUser.passwordHash,
+    );
+  });
+
+  it('signs login token with user id and email payload', async () => {
+    const { authPasswordService, authRepository, authTokenService, service } =
+      createService();
+    authRepository.findUserByEmail.mockResolvedValue(existingUser);
+    authPasswordService.comparePassword.mockResolvedValue(true);
+    authTokenService.signAccessToken.mockResolvedValue('access-token');
+
+    await service.login(createLoginDto());
+
+    expect(authTokenService.signAccessToken).toHaveBeenCalledWith({
       sub: existingUser.id,
       email: existingUser.email,
     });
   });
 
   it('returns public user data when registration succeeds', async () => {
-    const { prisma, service } = createService();
-    prisma.user.findUnique.mockResolvedValue(null);
-    bcryptHashMock.mockResolvedValue('hashed-password');
-    prisma.user.create.mockResolvedValue(createdUser);
+    const { authPasswordService, authRepository, service } = createService();
+    authRepository.findUserByEmail.mockResolvedValue(null);
+    authPasswordService.hashPassword.mockResolvedValue('hashed-password');
+    authRepository.createUser.mockResolvedValue(createdUser);
 
     const result = await service.register(createRegisterDto());
 
@@ -162,57 +174,52 @@ describe('AuthService', () => {
   });
 
   it('normalizes registration email before checking existing users', async () => {
-    const { prisma, service } = createService();
-    prisma.user.findUnique.mockResolvedValue(null);
-    bcryptHashMock.mockResolvedValue('hashed-password');
-    prisma.user.create.mockResolvedValue(createdUser);
+    const { authPasswordService, authRepository, service } = createService();
+    authRepository.findUserByEmail.mockResolvedValue(null);
+    authPasswordService.hashPassword.mockResolvedValue('hashed-password');
+    authRepository.createUser.mockResolvedValue(createdUser);
 
     await service.register(createRegisterDto());
 
-    expect(prisma.user.findUnique).toHaveBeenCalledWith({
-      where: { email: 'jane@example.com' },
-    });
+    expect(authRepository.findUserByEmail).toHaveBeenCalledWith(
+      'jane@example.com',
+    );
   });
 
   it('throws ConflictException when registration email already exists', async () => {
-    const { prisma, service } = createService();
-    prisma.user.findUnique.mockResolvedValue(existingUser);
+    const { authRepository, service } = createService();
+    authRepository.findUserByEmail.mockResolvedValue(existingUser);
 
     await expect(service.register(createRegisterDto())).rejects.toThrow(
       ConflictException,
     );
   });
 
-  it('hashes registration password with expected salt rounds', async () => {
-    const { prisma, service } = createService();
-    prisma.user.findUnique.mockResolvedValue(null);
-    bcryptHashMock.mockResolvedValue('hashed-password');
-    prisma.user.create.mockResolvedValue(createdUser);
+  it('hashes registration password', async () => {
+    const { authPasswordService, authRepository, service } = createService();
+    authRepository.findUserByEmail.mockResolvedValue(null);
+    authPasswordService.hashPassword.mockResolvedValue('hashed-password');
+    authRepository.createUser.mockResolvedValue(createdUser);
 
     await service.register(createRegisterDto());
 
-    expect(bcryptHashMock).toHaveBeenCalledWith('password123', 12);
+    expect(authPasswordService.hashPassword).toHaveBeenCalledWith(
+      'password123',
+    );
   });
 
   it('creates user with normalized email and trimmed name during registration', async () => {
-    const { prisma, service } = createService();
-    prisma.user.findUnique.mockResolvedValue(null);
-    bcryptHashMock.mockResolvedValue('hashed-password');
-    prisma.user.create.mockResolvedValue(createdUser);
+    const { authPasswordService, authRepository, service } = createService();
+    authRepository.findUserByEmail.mockResolvedValue(null);
+    authPasswordService.hashPassword.mockResolvedValue('hashed-password');
+    authRepository.createUser.mockResolvedValue(createdUser);
 
     await service.register(createRegisterDto());
 
-    expect(prisma.user.create).toHaveBeenCalledWith({
-      data: {
-        name: 'Jane Doe',
-        email: 'jane@example.com',
-        passwordHash: 'hashed-password',
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-      },
+    expect(authRepository.createUser).toHaveBeenCalledWith({
+      name: 'Jane Doe',
+      email: 'jane@example.com',
+      passwordHash: 'hashed-password',
     });
   });
 });

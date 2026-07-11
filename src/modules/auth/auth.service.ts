@@ -3,30 +3,31 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
 
-import { PrismaService } from '@database/prisma.service';
+import { AuthPasswordService } from './auth.password.service';
+import { AuthRepository } from './auth.repository';
+import { AuthTokenService } from './auth.token.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
-    private jwtService: JwtService,
+    private readonly authRepository: AuthRepository,
+    private readonly authPasswordService: AuthPasswordService,
+    private readonly authTokenService: AuthTokenService,
   ) {}
 
   async login(dto: LoginDto) {
-    const email = dto.email.trim().toLowerCase();
+    const email = dto.email.toLowerCase();
 
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.authRepository.findUserByEmail(email);
 
     if (!user) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const isPasswordValid = await bcrypt.compare(
+    const isPasswordValid = await this.authPasswordService.comparePassword(
       dto.password,
       user.passwordHash,
     );
@@ -38,7 +39,7 @@ export class AuthService {
     const jwtPayload = { sub: user.id, email: user.email };
 
     return {
-      accessToken: await this.jwtService.signAsync(jwtPayload),
+      accessToken: await this.authTokenService.signAccessToken(jwtPayload),
       user: {
         id: user.id,
         name: user.name,
@@ -48,27 +49,21 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const email = dto.email.trim().toLowerCase();
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const email = dto.email.toLowerCase();
+    const user = await this.authRepository.findUserByEmail(email);
 
     if (user) {
       throw new ConflictException('User with this email already exists');
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 12);
-    const name = dto.name.trim();
+    const passwordHash = await this.authPasswordService.hashPassword(
+      dto.password,
+    );
 
-    const createdUser = this.prisma.user.create({
-      data: {
-        name,
-        email,
-        passwordHash,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-      },
+    const createdUser = this.authRepository.createUser({
+      name: dto.name,
+      email,
+      passwordHash,
     });
 
     return createdUser;
