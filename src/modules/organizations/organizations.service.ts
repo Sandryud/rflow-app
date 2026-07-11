@@ -1,14 +1,20 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { MembershipRole } from 'generated/prisma/client';
+import { MembershipRole } from 'generated/prisma/enums';
 
-import { PrismaService } from '@database/prisma.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
+import { mapOrganizationWithRole } from './organizations.mapper';
+import { OrganizationsRepository } from './organizations.repository';
 
-type CreateOrganizationParams = { dto: CreateOrganizationDto; userId: string };
+type CreateOrganizationParams = {
+  dto: CreateOrganizationDto;
+  userId: string;
+};
 
 @Injectable()
 export class OrganizationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly organizationsRepository: OrganizationsRepository,
+  ) {}
 
   async createOrganization(params: CreateOrganizationParams) {
     const { userId, dto } = params;
@@ -20,29 +26,18 @@ export class OrganizationsService {
     const normalizeOrgName = dto.name.trim();
     const normalizeOrgDescription = dto.description?.trim();
 
-    const organization = await this.prisma.organization.create({
-      data: {
+    const organization = await this.organizationsRepository.createOrganization(
+      {
         name: normalizeOrgName,
         ...(normalizeOrgDescription && {
           description: normalizeOrgDescription,
         }),
         memberships: { create: { userId, role: MembershipRole.OWNER } },
       },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        createdAt: true,
-        memberships: { where: { userId }, select: { role: true } },
-      },
-    });
+      userId,
+    );
 
-    const { memberships, ...orgValues } = organization;
-
-    return {
-      ...orgValues,
-      role: memberships?.[0]?.role,
-    };
+    return mapOrganizationWithRole(organization);
   }
 
   async getOrganizations(userId: string) {
@@ -50,20 +45,9 @@ export class OrganizationsService {
       throw new BadRequestException();
     }
 
-    const organizations = await this.prisma.organization.findMany({
-      where: { deletedAt: null, memberships: { some: { userId } } },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        createdAt: true,
-        memberships: { where: { userId }, select: { role: true } },
-      },
-    });
+    const organizations =
+      await this.organizationsRepository.findUserOrganizations(userId);
 
-    return organizations.map(({ memberships, ...orgValues }) => ({
-      ...orgValues,
-      role: memberships?.[0]?.role,
-    }));
+    return organizations.map(mapOrganizationWithRole);
   }
 }

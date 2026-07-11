@@ -5,17 +5,16 @@ import { JwtAuthGuard } from '@modules/auth/auth.jwt-guard';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { OrganizationsService } from './organizations.service';
 
+@UseGuards(JwtAuthGuard)
 @Controller()
 export class OrganizationsController {
   constructor(private readonly organizationsService: OrganizationsService) {}
 
-  @UseGuards(JwtAuthGuard)
   @Get('/organizations')
   async getOrganizations(@Req() req: RequestWithUserType) {
     return this.organizationsService.getOrganizations(req.user.userId);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('/organizations')
   async createOrganization(
     @Body() dto: CreateOrganizationDto,
