@@ -1,14 +1,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { MembershipRole } from 'generated/prisma/enums';
 
-import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { mapOrganizationWithRole } from './organizations.mapper';
 import { OrganizationsRepository } from './organizations.repository';
-
-type CreateOrganizationParams = {
-  dto: CreateOrganizationDto;
-  userId: string;
-};
+import type {
+  CreateOrganizationParams,
+  CreateOrganizationResponse,
+  GetOrganizationsParams,
+  GetOrganizationsResponse,
+} from './organizations.types';
 
 @Injectable()
 export class OrganizationsService {
@@ -16,21 +16,20 @@ export class OrganizationsService {
     private readonly organizationsRepository: OrganizationsRepository,
   ) {}
 
-  async createOrganization(params: CreateOrganizationParams) {
+  async createOrganization(
+    params: CreateOrganizationParams,
+  ): Promise<CreateOrganizationResponse> {
     const { userId, dto } = params;
 
     if (!userId || !dto) {
       throw new BadRequestException();
     }
 
-    const normalizeOrgName = dto.name.trim();
-    const normalizeOrgDescription = dto.description?.trim();
-
     const organization = await this.organizationsRepository.createOrganization(
       {
-        name: normalizeOrgName,
-        ...(normalizeOrgDescription && {
-          description: normalizeOrgDescription,
+        name: dto.name,
+        ...(dto.description && {
+          description: dto.description,
         }),
         memberships: { create: { userId, role: MembershipRole.OWNER } },
       },
@@ -40,7 +39,9 @@ export class OrganizationsService {
     return mapOrganizationWithRole(organization);
   }
 
-  async getOrganizations(userId: string) {
+  async getOrganizations(
+    userId: GetOrganizationsParams,
+  ): Promise<GetOrganizationsResponse> {
     if (!userId) {
       throw new BadRequestException();
     }

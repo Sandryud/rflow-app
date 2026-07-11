@@ -1,17 +1,12 @@
-import type { MembershipRole } from 'generated/prisma/enums';
-
-type OrganizationWithMembershipRole = {
-  id: string;
-  name: string;
-  description: string | null;
-  createdAt: Date;
-  memberships: { role: MembershipRole }[];
-};
+import type {
+  OrganizationResponse,
+  OrganizationWithMembershipRole,
+} from './organizations.types';
 
 export const mapOrganizationWithRole = ({
   memberships,
   ...organization
-}: OrganizationWithMembershipRole) => ({
+}: OrganizationWithMembershipRole): OrganizationResponse => ({
   ...organization,
   role: memberships?.[0]?.role,
 });
