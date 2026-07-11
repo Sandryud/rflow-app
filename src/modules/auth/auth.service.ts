@@ -7,8 +7,12 @@ import {
 import { AuthPasswordService } from './auth.password.service';
 import { AuthRepository } from './auth.repository';
 import { AuthTokenService } from './auth.token.service';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import type {
+  LoginParams,
+  LoginResponse,
+  RegisterParams,
+  RegisterResponse,
+} from './auth.types';
 
 @Injectable()
 export class AuthService {
@@ -18,7 +22,7 @@ export class AuthService {
     private readonly authTokenService: AuthTokenService,
   ) {}
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginParams): Promise<LoginResponse> {
     const email = dto.email.toLowerCase();
 
     const user = await this.authRepository.findUserByEmail(email);
@@ -48,7 +52,7 @@ export class AuthService {
     };
   }
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterParams): Promise<RegisterResponse> {
     const email = dto.email.toLowerCase();
     const user = await this.authRepository.findUserByEmail(email);
 
