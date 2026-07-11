@@ -13,11 +13,11 @@ import { JwtAuthGuard } from '@modules/auth/auth.jwt-guard';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ProjectsService } from './projects.service';
 
+@UseGuards(JwtAuthGuard)
 @Controller()
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
-  @UseGuards(JwtAuthGuard)
   @Get('/organizations/:organizationId/projects')
   async getProjects(
     @Req() req: RequestWithUserType,
@@ -29,7 +29,6 @@ export class ProjectsController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('/organizations/:organizationId/projects')
   async createProject(
     @Body() dto: CreateProjectDto,

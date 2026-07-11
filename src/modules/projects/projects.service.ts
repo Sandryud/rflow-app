@@ -1,12 +1,8 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { MembershipRole } from 'generated/prisma/enums';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { PrismaService } from '@database/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { ProjectsPolicy } from './projects.policy';
+import { ProjectsRepository } from './projects.repository';
 
 type CreateProjectParams = {
   userId: string;
@@ -21,37 +17,19 @@ type GetProjectsParams = {
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  private readonly allowedCreateProjectRoles = new Set<MembershipRole>([
-    MembershipRole.OWNER,
-    MembershipRole.MANAGER,
-  ]);
+  constructor(
+    private readonly projectsRepository: ProjectsRepository,
+    private readonly projectsPolicy: ProjectsPolicy,
+  ) {}
 
   async getProjects(params: GetProjectsParams) {
     const { userId, organizationId } = params;
 
-    const organization = await this.prisma.organization.findFirst({
-      where: {
-        id: organizationId,
-        deletedAt: null,
-        memberships: { some: { userId } },
-      },
-      select: {
-        projects: {
-          where: {
-            deletedAt: null,
-          },
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            createdAt: true,
-            organizationId: true,
-          },
-        },
-      },
-    });
+    const organization =
+      await this.projectsRepository.findOrganizationWithProjects(
+        userId,
+        organizationId,
+      );
 
     if (!organization) {
       throw new NotFoundException('You are not a member of this organization');
@@ -63,34 +41,21 @@ export class ProjectsService {
   async createProject(params: CreateProjectParams) {
     const { dto, userId, organizationId } = params;
 
-    const membership = await this.prisma.membership.findFirst({
-      where: { userId, organizationId, organization: { deletedAt: null } },
-      select: { role: true, id: true },
-    });
+    const membership = await this.projectsRepository.findOrganizationMembership(
+      userId,
+      organizationId,
+    );
 
     if (!membership) {
       throw new NotFoundException('You are not a member of this organization');
     }
 
-    if (!this.allowedCreateProjectRoles.has(membership.role)) {
-      throw new ForbiddenException(
-        'You do not have permission to create projects',
-      );
-    }
+    this.projectsPolicy.assertCanCreateProject(membership.role);
 
-    const project = this.prisma.project.create({
-      data: {
-        name: dto.name,
-        description: dto.description,
-        organizationId,
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        organizationId: true,
-        createdAt: true,
-      },
+    const project = this.projectsRepository.createProject({
+      name: dto.name,
+      description: dto.description,
+      organizationId,
     });
 
     return project;
