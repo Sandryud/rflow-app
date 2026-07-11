@@ -13,11 +13,11 @@ import { JwtAuthGuard } from '@modules/auth/auth.jwt-guard';
 import { CreateEnvironmentDto } from './dto/create-environment.dto';
 import { EnvironmentsService } from './environments.service';
 
+@UseGuards(JwtAuthGuard)
 @Controller()
 export class EnvironmentsController {
   constructor(private readonly environmentsService: EnvironmentsService) {}
 
-  @UseGuards(JwtAuthGuard)
   @Get('/projects/:projectId/environments')
   async getEnvironments(
     @Req() req: RequestWithUserType,
@@ -29,7 +29,6 @@ export class EnvironmentsController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('/projects/:projectId/environments')
   async createEnvironment(
     @Req() req: RequestWithUserType,

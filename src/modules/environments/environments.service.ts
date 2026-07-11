@@ -1,12 +1,8 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { MembershipRole } from 'generated/prisma/enums';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { PrismaService } from '@database/prisma.service';
 import { CreateEnvironmentDto } from './dto/create-environment.dto';
+import { EnvironmentsPolicy } from './environments.policy';
+import { EnvironmentsRepository } from './environments.repository';
 
 type RequestParams = {
   userId: string;
@@ -19,90 +15,43 @@ type CreateEnvironmentParams = {
 
 @Injectable()
 export class EnvironmentsService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  private readonly allowedCreateEnvRoles = new Set<MembershipRole>([
-    MembershipRole.OWNER,
-    MembershipRole.MANAGER,
-  ]);
+  constructor(
+    private readonly environmentsRepository: EnvironmentsRepository,
+    private readonly environmentsPolicy: EnvironmentsPolicy,
+  ) {}
 
   async getEnvironments({ userId, projectId }: RequestParams) {
-    const project = await this.prisma.project.findFirst({
-      where: {
-        id: projectId,
-        deletedAt: null,
-        organization: {
-          deletedAt: null,
-          memberships: {
-            some: { userId },
-          },
-        },
-      },
-    });
+    const project = await this.environmentsRepository.findProjectForUser(
+      userId,
+      projectId,
+    );
 
     if (!project) {
       throw new NotFoundException('Not found project');
     }
 
-    const envs = await this.prisma.environment.findMany({
-      where: {
-        projectId,
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-        projectId: true,
-        isActive: true,
-        isDefault: true,
-        name: true,
-        description: true,
-        createdAt: true,
-      },
-    });
+    const envs =
+      await this.environmentsRepository.findProjectEnvironments(projectId);
 
     return envs;
   }
 
   async createEnvironment({ dto, userId, projectId }: CreateEnvironmentParams) {
-    const membership = await this.prisma.membership.findFirst({
-      where: {
-        userId,
-        organization: {
-          deletedAt: null,
-          projects: { some: { id: projectId, deletedAt: null } },
-        },
-      },
-      select: {
-        role: true,
-        id: true,
-      },
-    });
+    const membership = await this.environmentsRepository.findProjectMembership(
+      userId,
+      projectId,
+    );
 
     if (!membership) {
       throw new NotFoundException('You are not a member of this organization');
     }
 
-    if (!this.allowedCreateEnvRoles.has(membership.role)) {
-      throw new ForbiddenException(
-        'You do not have permission to create environments',
-      );
-    }
+    this.environmentsPolicy.assertCanCreateEnvironment(membership.role);
 
-    const env = await this.prisma.environment.create({
-      data: {
-        name: dto.name,
-        description: dto.description,
-        projectId,
-      },
-      select: {
-        id: true,
-        name: true,
-        projectId: true,
-        description: true,
-        createdAt: true,
-        isActive: true,
-        isDefault: true,
-      },
+    const env = await this.environmentsRepository.createEnvironment({
+      name: dto.name,
+      description: dto.description,
+      projectId,
     });
 
     return env;
