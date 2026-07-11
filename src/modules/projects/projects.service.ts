@@ -1,19 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { CreateProjectDto } from './dto/create-project.dto';
 import { ProjectsPolicy } from './projects.policy';
 import { ProjectsRepository } from './projects.repository';
-
-type CreateProjectParams = {
-  userId: string;
-  organizationId: string;
-  dto: CreateProjectDto;
-};
-
-type GetProjectsParams = {
-  userId: string;
-  organizationId: string;
-};
+import type {
+  CreateProjectParams,
+  CreateProjectResponse,
+  GetProjectsParams,
+  GetProjectsResponse,
+} from './projects.types';
 
 @Injectable()
 export class ProjectsService {
@@ -22,7 +16,7 @@ export class ProjectsService {
     private readonly projectsPolicy: ProjectsPolicy,
   ) {}
 
-  async getProjects(params: GetProjectsParams) {
+  async getProjects(params: GetProjectsParams): Promise<GetProjectsResponse> {
     const { userId, organizationId } = params;
 
     const organization =
@@ -38,7 +32,9 @@ export class ProjectsService {
     return organization.projects;
   }
 
-  async createProject(params: CreateProjectParams) {
+  async createProject(
+    params: CreateProjectParams,
+  ): Promise<CreateProjectResponse> {
     const { dto, userId, organizationId } = params;
 
     const membership = await this.projectsRepository.findOrganizationMembership(
