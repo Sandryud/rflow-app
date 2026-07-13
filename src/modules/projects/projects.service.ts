@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
+import { ErrorMessage } from '@common/constants/error-message';
 import { ProjectsPolicy } from './projects.policy';
 import { ProjectsRepository } from './projects.repository';
 import type {
@@ -26,7 +27,7 @@ export class ProjectsService {
       );
 
     if (!organization) {
-      throw new NotFoundException('You are not a member of this organization');
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
     }
 
     return organization.projects;
@@ -43,7 +44,7 @@ export class ProjectsService {
     );
 
     if (!membership) {
-      throw new NotFoundException('You are not a member of this organization');
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
     }
 
     this.projectsPolicy.assertCanCreateProject(membership.role);

@@ -22,6 +22,12 @@ model User {
   updatedAt    DateTime     @updatedAt
   memberships  Membership[]
   releases     Release[]
+
+  createdChecklistItems ChecklistItem[] @relation("ChecklistItemCreatedBy")
+
+  assignedChecklistItems ChecklistItem[] @relation("ChecklistItemAssignedTo")
+
+  completedChecklistItems ChecklistItem[] @relation("ChecklistItemCompletedBy")
 }
 
 enum MembershipRole {
@@ -97,22 +103,23 @@ enum ReleaseStatus {
 }
 
 model Release {
-  id               String        @id @default(uuid())
-  version          String        @db.VarChar(50)
-  name             String        @db.VarChar(100)
-  description      String?       @db.VarChar(400)
-  status           ReleaseStatus @default(DRAFT)
+  id               String          @id @default(uuid())
+  version          String          @db.VarChar(50)
+  name             String          @db.VarChar(100)
+  description      String?         @db.VarChar(400)
+  status           ReleaseStatus   @default(DRAFT)
   createdByUserId  String
-  createdBy        User          @relation(fields: [createdByUserId], references: [id])
+  createdBy        User            @relation(fields: [createdByUserId], references: [id])
   plannedReleaseAt DateTime?
   projectId        String
   environmentId    String
-  environment      Environment   @relation(fields: [environmentId], references: [id])
-  project          Project       @relation(fields: [projectId], references: [id])
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  environment      Environment     @relation(fields: [environmentId], references: [id])
+  project          Project         @relation(fields: [projectId], references: [id])
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
   deletedAt        DateTime?
   releaseTasks     ReleaseTask[]
+  checkListItems   ChecklistItem[]
 
   @@unique([projectId, version])
 }
@@ -130,4 +137,36 @@ model ReleaseTask {
   updatedAt   DateTime @updatedAt
 
   @@unique([releaseId, key])
+}
+
+enum ChecklistItemStatus {
+  TODO
+  DONE
+  BLOCKED
+}
+
+model ChecklistItem {
+  id          String              @id @default(uuid())
+  releaseId   String
+  release     Release             @relation(fields: [releaseId], references: [id])
+  title       String              @db.VarChar(200)
+  description String?             @db.VarChar(400)
+  status      ChecklistItemStatus @default(TODO)
+  isRequired  Boolean             @default(false)
+  comment     String?             @db.VarChar(500)
+
+  assignedToUserId String?
+  assignedTo       User?   @relation("ChecklistItemAssignedTo", fields: [assignedToUserId], references: [id])
+
+  createdByUserId String
+  createdBy       User   @relation("ChecklistItemCreatedBy", fields: [createdByUserId], references: [id])
+
+  completedByUserId String?
+  completedBy       User?   @relation("ChecklistItemCompletedBy", fields: [completedByUserId], references: [id])
+
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([releaseId, title])
 }

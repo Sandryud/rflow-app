@@ -6,6 +6,7 @@ import {
 import { Prisma } from 'generated/prisma/client';
 import { ReleaseStatus } from 'generated/prisma/enums';
 
+import { ErrorMessage } from '@common/constants/error-message';
 import { ReleasesPolicy } from './releases.policy';
 import { ReleasesRepository } from './releases.repository';
 import type {
@@ -39,7 +40,7 @@ export class ReleasesService {
     );
 
     if (!membership) {
-      throw new NotFoundException('You are not a member of this organization');
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
     }
 
     this.releasesPolicy.assertCanCreateRelease(membership.role);
@@ -93,13 +94,13 @@ export class ReleasesService {
     );
 
     if (!membership) {
-      throw new NotFoundException('You are not a member of this organization');
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
     }
 
     const release = await this.releasesRepository.findReleaseById(releaseId);
 
     if (!release) {
-      throw new NotFoundException('The current release not found');
+      throw new NotFoundException(ErrorMessage.RELEASE_NOT_FOUND);
     }
 
     return release;
@@ -115,7 +116,7 @@ export class ReleasesService {
     );
 
     if (!membership) {
-      throw new NotFoundException('You are not a member of this organization');
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
     }
 
     const releases =
@@ -135,7 +136,7 @@ export class ReleasesService {
     );
 
     if (!membership) {
-      throw new NotFoundException('You are not a member of this organization');
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
     }
 
     this.releasesPolicy.assertCanCreateReleaseTask(membership.role);
@@ -144,12 +145,12 @@ export class ReleasesService {
       await this.releasesRepository.findReleaseStatusById(releaseId);
 
     if (!release) {
-      throw new NotFoundException('The current release not found');
+      throw new NotFoundException(ErrorMessage.RELEASE_NOT_FOUND);
     }
 
     if (release.status !== ReleaseStatus.DRAFT) {
       throw new ConflictException(
-        `Release status ${release?.status} does not meet the requirements to create a new release task`,
+        `Release status ${release.status} does not meet the requirements to create a new release task`,
       );
     }
 
@@ -185,7 +186,7 @@ export class ReleasesService {
     );
 
     if (!membership) {
-      throw new NotFoundException('You are not a member of this organization');
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
     }
 
     const tasks = await this.releasesRepository.findReleaseTasks(releaseId);

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
+import { ErrorMessage } from '@common/constants/error-message';
 import { EnvironmentsPolicy } from './environments.policy';
 import { EnvironmentsRepository } from './environments.repository';
 import type {
@@ -46,7 +47,7 @@ export class EnvironmentsService {
     );
 
     if (!membership) {
-      throw new NotFoundException('You are not a member of this organization');
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
     }
 
     this.environmentsPolicy.assertCanCreateEnvironment(membership.role);
