@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ChecklistItemStatus, Prisma } from 'generated/prisma/client';
+import {
+  ChecklistItemStatus,
+  Prisma,
+  ReleaseStatus,
+} from 'generated/prisma/client';
 
 import { PrismaService } from '@database/prisma.service';
 import {
@@ -87,7 +91,18 @@ export class ChecklistRepository {
     data: Prisma.ChecklistItemUpdateInput,
   ) {
     const item = await this.prisma.checklistItem.update({
-      where: { id: checklistItemId, status: currentStatus },
+      where: {
+        id: checklistItemId,
+        status: currentStatus,
+        release: {
+          status: { in: [ReleaseStatus.DRAFT, ReleaseStatus.IN_REVIEW] },
+          deletedAt: null,
+          project: {
+            deletedAt: null,
+            organization: { deletedAt: null },
+          },
+        },
+      },
       data,
       select: checklistUpdateStatusItemsSelect,
     });

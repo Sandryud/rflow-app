@@ -234,9 +234,7 @@ export class ChecklistItemService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
       ) {
-        throw new ConflictException(
-          'Checklist item status was changed by another request',
-        );
+        throw new ConflictException('Checklist item can no longer be updated');
       }
 
       throw error;
