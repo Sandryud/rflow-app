@@ -28,6 +28,7 @@ model User {
   assignedChecklistItems ChecklistItem[] @relation("ChecklistItemAssignedTo")
 
   completedChecklistItems ChecklistItem[] @relation("ChecklistItemCompletedBy")
+  reviewerApprovals       Approval[]
 }
 
 enum MembershipRole {
@@ -120,6 +121,7 @@ model Release {
   deletedAt        DateTime?
   releaseTasks     ReleaseTask[]
   checkListItems   ChecklistItem[]
+  approvals        Approval[]
 
   @@unique([projectId, version])
 }
@@ -169,4 +171,25 @@ model ChecklistItem {
   updatedAt   DateTime  @updatedAt
 
   @@unique([releaseId, title])
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Approval {
+  id             String         @id @default(uuid())
+  releaseId      String
+  release        Release        @relation(fields: [releaseId], references: [id])
+  reviewerUserId String
+  reviewer       User           @relation(fields: [reviewerUserId], references: [id])
+  status         ApprovalStatus @default(PENDING)
+  comment        String?        @db.VarChar(400)
+  decidedAt      DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([releaseId, reviewerUserId])
 }
