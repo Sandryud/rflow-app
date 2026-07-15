@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   NotImplementedException,
@@ -19,6 +20,7 @@ import type {
   GetApprovalsResponse,
   RejectApprovalParams,
   RevokeApprovalParams,
+  UpdateApprovalResponse,
 } from './approvals.types';
 
 @Injectable()
@@ -124,9 +126,60 @@ export class ApprovalsService {
     return approvals;
   }
 
-  approveApproval(params: ApproveApprovalParams): never {
-    void params;
-    throw new NotImplementedException();
+  async approveApproval({
+    userId,
+    approvalId,
+  }: ApproveApprovalParams): Promise<UpdateApprovalResponse> {
+    const approval = await this.repository.findApprovalById(approvalId);
+
+    if (!approval) {
+      throw new NotFoundException('The current approval not found');
+    }
+
+    const membership = await this.repository.findReleaseMembership(
+      userId,
+      approval.releaseId,
+    );
+
+    if (!membership) {
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
+    }
+
+    if (approval.reviewerUserId !== userId) {
+      throw new ForbiddenException('You are not a reviewer user');
+    }
+
+    if (approval.release.status !== ReleaseStatus.IN_REVIEW) {
+      throw new ConflictException('Release status is not IN_REVIEW');
+    }
+
+    if (approval.status !== ApprovalStatus.PENDING) {
+      throw new ConflictException('Approval status is not PENDING');
+    }
+
+    try {
+      const updatedApproval = await this.repository.updateApprovalStatus({
+        data: {
+          comment: null,
+          decidedAt: new Date(),
+          status: ApprovalStatus.APPROVED,
+        },
+        userId,
+        approvalId,
+        currentStatus: approval.status,
+      });
+
+      return updatedApproval;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new ConflictException('Approval can no longer be updated');
+      }
+
+      throw error;
+    }
   }
 
   rejectApproval(params: RejectApprovalParams): never {

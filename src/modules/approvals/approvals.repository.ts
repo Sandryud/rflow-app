@@ -1,8 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from 'generated/prisma/client';
+import { ApprovalStatus, Prisma, ReleaseStatus } from 'generated/prisma/client';
 
 import { PrismaService } from '@database/prisma.service';
-import { createApprovalSelect, findApprovalsSelect } from './approvals.select';
+import {
+  createApprovalSelect,
+  findApprovalsSelect,
+  updateApprovalsSelect,
+} from './approvals.select';
+
+type UpdateApprovalParams = {
+  data: Prisma.ApprovalUpdateInput;
+  approvalId: string;
+  userId: string;
+  currentStatus: ApprovalStatus;
+};
 
 @Injectable()
 export class ApprovalsRepository {
@@ -74,6 +85,47 @@ export class ApprovalsRepository {
       },
       select: findApprovalsSelect,
       orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async findApprovalById(approvalId: string) {
+    return this.prisma.approval.findFirst({
+      where: {
+        id: approvalId,
+        release: {
+          deletedAt: null,
+          project: { deletedAt: null, organization: { deletedAt: null } },
+        },
+      },
+      select: {
+        id: true,
+        releaseId: true,
+        reviewerUserId: true,
+        status: true,
+        release: { select: { status: true } },
+      },
+    });
+  }
+
+  async updateApprovalStatus({
+    approvalId,
+    userId,
+    currentStatus,
+    data,
+  }: UpdateApprovalParams) {
+    return this.prisma.approval.update({
+      where: {
+        id: approvalId,
+        reviewerUserId: userId,
+        status: currentStatus,
+        release: {
+          status: { in: [ReleaseStatus.IN_REVIEW] },
+          deletedAt: null,
+          project: { deletedAt: null, organization: { deletedAt: null } },
+        },
+      },
+      data,
+      select: updateApprovalsSelect,
     });
   }
 }

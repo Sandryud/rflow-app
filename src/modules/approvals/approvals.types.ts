@@ -3,6 +3,7 @@ import type { Prisma } from 'generated/prisma/client';
 import type {
   createApprovalSelect,
   findApprovalsSelect,
+  updateApprovalsSelect,
 } from './approvals.select';
 import type { CreateApprovalDto } from './dto/create-approval.dto';
 import type { RejectApprovalDto } from './dto/reject-approval.dto';
@@ -16,6 +17,10 @@ export type GetApprovalResponse = Prisma.ApprovalGetPayload<{
 }>;
 
 export type GetApprovalsResponse = GetApprovalResponse[];
+
+export type UpdateApprovalResponse = Prisma.ApprovalGetPayload<{
+  select: typeof updateApprovalsSelect;
+}>;
 
 export type ApprovalUserParams = {
   userId: string;

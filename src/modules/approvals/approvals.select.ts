@@ -18,3 +18,14 @@ export const findApprovalsSelect = {
   decidedAt: true,
   comment: true,
 } satisfies Prisma.ApprovalSelect;
+
+export const updateApprovalsSelect = {
+  id: true,
+  releaseId: true,
+  reviewerUserId: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+  decidedAt: true,
+  comment: true,
+} satisfies Prisma.ApprovalSelect;
