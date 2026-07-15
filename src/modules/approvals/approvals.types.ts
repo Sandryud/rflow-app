@@ -1,12 +1,21 @@
 import type { Prisma } from 'generated/prisma/client';
 
-import type { createApprovalSelect } from './approvals.select';
+import type {
+  createApprovalSelect,
+  findApprovalsSelect,
+} from './approvals.select';
 import type { CreateApprovalDto } from './dto/create-approval.dto';
 import type { RejectApprovalDto } from './dto/reject-approval.dto';
 
 export type CreateApprovalResponse = Prisma.ApprovalGetPayload<{
   select: typeof createApprovalSelect;
 }>;
+
+export type GetApprovalResponse = Prisma.ApprovalGetPayload<{
+  select: typeof findApprovalsSelect;
+}>;
+
+export type GetApprovalsResponse = GetApprovalResponse[];
 
 export type ApprovalUserParams = {
   userId: string;

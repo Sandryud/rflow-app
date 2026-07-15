@@ -16,6 +16,7 @@ import type {
   CreateApprovalResponse,
   DeleteApprovalParams,
   GetApprovalsParams,
+  GetApprovalsResponse,
   RejectApprovalParams,
   RevokeApprovalParams,
 } from './approvals.types';
@@ -105,9 +106,22 @@ export class ApprovalsService {
     }
   }
 
-  getApprovals(params: GetApprovalsParams): never {
-    void params;
-    throw new NotImplementedException();
+  async getApprovals({
+    userId,
+    releaseId,
+  }: GetApprovalsParams): Promise<GetApprovalsResponse> {
+    const membership = await this.repository.findReleaseMembership(
+      userId,
+      releaseId,
+    );
+
+    if (!membership) {
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
+    }
+
+    const approvals = await this.repository.findApprovals(releaseId);
+
+    return approvals;
   }
 
   approveApproval(params: ApproveApprovalParams): never {

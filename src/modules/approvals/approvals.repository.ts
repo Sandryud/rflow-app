@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from 'generated/prisma/client';
 
 import { PrismaService } from '@database/prisma.service';
-import { createApprovalSelect } from './approvals.select';
+import { createApprovalSelect, findApprovalsSelect } from './approvals.select';
 
 @Injectable()
 export class ApprovalsRepository {
@@ -61,5 +61,19 @@ export class ApprovalsRepository {
 
   async createApproval(data: Prisma.ApprovalCreateInput) {
     return this.prisma.approval.create({ data, select: createApprovalSelect });
+  }
+
+  async findApprovals(releaseId: string) {
+    return this.prisma.approval.findMany({
+      where: {
+        releaseId,
+        release: {
+          deletedAt: null,
+          project: { deletedAt: null, organization: { deletedAt: null } },
+        },
+      },
+      select: findApprovalsSelect,
+      orderBy: { createdAt: 'asc' },
+    });
   }
 }
