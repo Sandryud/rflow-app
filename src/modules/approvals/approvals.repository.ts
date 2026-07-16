@@ -66,6 +66,13 @@ export class ApprovalsRepository {
   async findOtherReviewer(releaseId: string, excludedUserId: string) {
     return this.prisma.approval.findFirst({
       where: { releaseId, reviewerUserId: { not: excludedUserId } },
+      select: { id: true, reviewerUserId: true },
+    });
+  }
+
+  async findReviewerApproval(releaseId: string, reviewerUserId: string) {
+    return this.prisma.approval.findFirst({
+      where: { releaseId, reviewerUserId },
       select: { id: true },
     });
   }
@@ -126,6 +133,38 @@ export class ApprovalsRepository {
       },
       data,
       select: updateApprovalsSelect,
+    });
+  }
+
+  async hasRemainingNonCreatorReviewer(
+    releaseId: string,
+    creatorUserId: string,
+    excludedApprovalId: string,
+  ) {
+    const approval = await this.prisma.approval.findFirst({
+      where: {
+        releaseId,
+        reviewerUserId: { not: creatorUserId },
+        id: { not: excludedApprovalId },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return Boolean(approval);
+  }
+
+  async deleteApproval(approvalId: string) {
+    return this.prisma.approval.delete({
+      where: {
+        id: approvalId,
+        release: {
+          deletedAt: null,
+          status: { in: [ReleaseStatus.DRAFT] },
+          project: { deletedAt: null, organization: { deletedAt: null } },
+        },
+      },
     });
   }
 }

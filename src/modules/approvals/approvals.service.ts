@@ -3,7 +3,6 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  NotImplementedException,
 } from '@nestjs/common';
 import { Prisma } from 'generated/prisma/client';
 import { ApprovalStatus, ReleaseStatus } from 'generated/prisma/enums';
@@ -44,7 +43,7 @@ export class ApprovalsService {
       throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
     }
 
-    this.policy.assertCanCreateApproval(membership.role);
+    this.policy.assertCanManageApproval(membership.role);
 
     const release = await this.repository.findRelease(releaseId);
 
@@ -295,8 +294,73 @@ export class ApprovalsService {
     }
   }
 
-  deleteApproval(params: DeleteApprovalParams): never {
-    void params;
-    throw new NotImplementedException();
+  async deleteApproval({
+    approvalId,
+    userId,
+  }: DeleteApprovalParams): Promise<void> {
+    const approval = await this.repository.findApprovalById(approvalId);
+
+    if (!approval) {
+      throw new NotFoundException('The current approval not found');
+    }
+
+    const membership = await this.repository.findReleaseMembership(
+      userId,
+      approval.releaseId,
+    );
+
+    if (!membership) {
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
+    }
+
+    this.policy.assertCanManageApproval(membership.role);
+
+    if (approval.release.status !== ReleaseStatus.DRAFT) {
+      throw new ConflictException('Release status is not DRAFT');
+    }
+
+    const release = await this.repository.findRelease(approval.releaseId);
+
+    if (!release) {
+      throw new NotFoundException(ErrorMessage.RELEASE_NOT_FOUND);
+    }
+
+    const isReleaseCreator =
+      approval.reviewerUserId === release.createdByUserId;
+
+    if (!isReleaseCreator) {
+      const creatorApproval = await this.repository.findReviewerApproval(
+        release.id,
+        release.createdByUserId,
+      );
+
+      if (creatorApproval) {
+        const hasOtherReviewer =
+          await this.repository.hasRemainingNonCreatorReviewer(
+            release.id,
+            release.createdByUserId,
+            approval.id,
+          );
+
+        if (!hasOtherReviewer) {
+          throw new ConflictException(
+            'Release creator cannot be the only reviewer',
+          );
+        }
+      }
+    }
+
+    try {
+      await this.repository.deleteApproval(approvalId);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new ConflictException('Approval can no longer be deleted');
+      }
+
+      throw error;
+    }
   }
 }

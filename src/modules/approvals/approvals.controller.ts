@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -82,6 +84,7 @@ export class ApprovalsController {
   }
 
   @Delete('/approvals/:approvalId')
+  @HttpCode(HttpStatus.NO_CONTENT)
   deleteApproval(
     @Req() req: RequestWithUserType,
     @Param('approvalId', ParseUUIDPipe) approvalId: string,

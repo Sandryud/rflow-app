@@ -3,15 +3,15 @@ import { MembershipRole } from 'generated/prisma/enums';
 
 @Injectable()
 export class ApprovalsPolicy {
-  private readonly allowedCreateApprovalRoles = new Set<MembershipRole>([
+  private readonly allowedManageApprovalRoles = new Set<MembershipRole>([
     MembershipRole.OWNER,
     MembershipRole.MANAGER,
   ]);
 
-  assertCanCreateApproval(role: MembershipRole) {
-    if (!this.allowedCreateApprovalRoles.has(role)) {
+  assertCanManageApproval(role: MembershipRole) {
+    if (!this.allowedManageApprovalRoles.has(role)) {
       throw new ForbiddenException(
-        'You do not have permission to create approval',
+        'You do not have permission to manage approvals',
       );
     }
   }

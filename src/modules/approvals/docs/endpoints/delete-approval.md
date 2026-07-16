@@ -9,18 +9,46 @@ DELETE /api/v1/approvals/:approvalId
 Authorization: Bearer <access-token>
 ```
 
-Ожидает реализацию в текущем коде и не должен описываться как доступный сценарий, если нет рабочей бизнес-логики.
+Удаляет назначение reviewer из релиза.
 
-## Текущее состояние
+## Вход
 
-В текущей реализации endpoint объявлен в controller, но `ApprovalsService.deleteApproval` выбрасывает `NotImplementedException`.
+- `approvalId` передается через path-параметр;
+- `userId` берется из JWT;
+- body отсутствует.
+
+## Выполнение
+
+| Шаг | Слой       | Действие                                                   |
+| --- | ---------- | ---------------------------------------------------------- |
+| 1   | Controller | Передает `userId` и `approvalId` в service                 |
+| 2   | Service    | Проверяет membership и роль `OWNER` / `MANAGER`            |
+| 3   | Service    | Проверяет, что release находится в `DRAFT`                 |
+| 4   | Service    | Проверяет, что creator не останется единственным reviewer  |
+| 5   | Repository | Условно удаляет approval при доступной soft-delete цепочке |
+
+## Бизнес-правила
+
+- удалять approvals могут только `OWNER` и `MANAGER`;
+- release должен находиться в `DRAFT`;
+- approval creator можно удалить;
+- если у creator есть approval, нельзя удалить последнего другого reviewer;
+- если у creator нет approval, допускается удалить последнего reviewer;
+- если данные изменились между проверкой и delete, возвращается `409 Conflict`.
+
+## Prisma
+
+Операция: условный `Approval.delete` по `approvalId` и доступному release в `DRAFT`.
 
 ## Ответ
 
-HTTP `501 Not Implemented`.
+HTTP `204 No Content`. Response body отсутствует.
 
 ## Ошибки
 
-| Статус | Причина                                   |
-| ------ | ----------------------------------------- |
-| `501`  | Метод `deleteApproval` пока не реализован |
+| Статус | Причина                                                                                 |
+| ------ | --------------------------------------------------------------------------------------- |
+| `401`  | Access token отсутствует, поврежден или истек                                           |
+| `403`  | Роль пользователя не позволяет управлять approvals                                      |
+| `404`  | Approval недоступен или пользователь не состоит в организации release                   |
+| `409`  | Release не в `DRAFT`, creator останется единственным reviewer или delete уже невозможен |
