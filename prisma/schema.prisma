@@ -29,6 +29,7 @@ model User {
 
   completedChecklistItems ChecklistItem[] @relation("ChecklistItemCompletedBy")
   reviewerApprovals       Approval[]
+  authoredComments        Comment[]
 }
 
 enum MembershipRole {
@@ -122,6 +123,7 @@ model Release {
   releaseTasks     ReleaseTask[]
   checkListItems   ChecklistItem[]
   approvals        Approval[]
+  comments         Comment[]
 
   @@unique([projectId, version])
 }
@@ -192,4 +194,18 @@ model Approval {
   updatedAt      DateTime       @updatedAt
 
   @@unique([releaseId, reviewerUserId])
+}
+
+model Comment {
+  id           String    @id @default(uuid())
+  releaseId    String
+  release      Release   @relation(fields: [releaseId], references: [id])
+  authorUserId String
+  author       User      @relation(fields: [authorUserId], references: [id])
+  message      String    @db.VarChar(2000)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  @@index([releaseId, deletedAt, createdAt])
 }
