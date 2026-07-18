@@ -150,6 +150,31 @@ describe('CommentsService', () => {
       });
     });
 
+    it('allows a viewer to create a comment', async () => {
+      const { repository, service } = createService();
+      repository.findReleaseMembership.mockResolvedValue({
+        ...membership,
+        role: MembershipRole.VIEWER,
+      });
+      repository.findRelease.mockResolvedValue(activeRelease);
+      repository.createComment.mockResolvedValue(commentResponse);
+
+      const result = await service.createComment(createParams);
+
+      expect(result).toEqual(commentResponse);
+    });
+
+    it('allows creating a comment when the release status is RELEASED', async () => {
+      const { repository, service } = createService();
+      repository.findReleaseMembership.mockResolvedValue(membership);
+      repository.findRelease.mockResolvedValue(releasedRelease);
+      repository.createComment.mockResolvedValue(commentResponse);
+
+      const result = await service.createComment(createParams);
+
+      expect(result).toEqual(commentResponse);
+    });
+
     it('returns not found when the user is not an organization member', async () => {
       const { repository, service } = createService();
       repository.findReleaseMembership.mockResolvedValue(null);
