@@ -1,8 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from 'generated/prisma/client';
+import { Prisma, ReleaseStatus } from 'generated/prisma/client';
 
 import { PrismaService } from '@database/prisma.service';
-import { releaseSelect, releaseTaskSelect } from './releases.select';
+import {
+  releaseSelect,
+  releaseTaskSelect,
+  updateReleaseSelect,
+} from './releases.select';
 
 @Injectable()
 export class ReleasesRepository {
@@ -70,6 +74,41 @@ export class ReleasesRepository {
     });
   }
 
+  findReleaseRequestReviewContext(releaseId: string) {
+    return this.prisma.release.findFirst({
+      where: {
+        id: releaseId,
+        deletedAt: null,
+        project: {
+          deletedAt: null,
+          organization: { deletedAt: null },
+        },
+        environment: {
+          isActive: true,
+          deletedAt: null,
+          project: {
+            releases: {
+              some: { id: releaseId },
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        status: true,
+        createdByUserId: true,
+        projectId: true,
+        environmentId: true,
+        approvals: {
+          select: {
+            reviewerUserId: true,
+            status: true,
+          },
+        },
+      },
+    });
+  }
+
   findReleaseStatusById(releaseId: string) {
     return this.prisma.release.findFirst({
       where: {
@@ -99,6 +138,19 @@ export class ReleasesRepository {
     return this.prisma.releaseTask.findMany({
       where: { releaseId },
       select: releaseTaskSelect,
+    });
+  }
+
+  requestReview(releaseId: string) {
+    return this.prisma.release.update({
+      where: {
+        id: releaseId,
+        deletedAt: null,
+        status: ReleaseStatus.DRAFT,
+        project: { deletedAt: null, organization: { deletedAt: null } },
+      },
+      data: { status: ReleaseStatus.IN_REVIEW },
+      select: updateReleaseSelect,
     });
   }
 }

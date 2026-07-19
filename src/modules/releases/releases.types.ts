@@ -4,7 +4,11 @@ import type {
   CreateReleaseDto,
   CreateReleaseTaskDto,
 } from './dto/releases.dto';
-import type { releaseSelect, releaseTaskSelect } from './releases.select';
+import type {
+  releaseSelect,
+  releaseTaskSelect,
+  updateReleaseSelect,
+} from './releases.select';
 
 export type ReleaseResponse = Prisma.ReleaseGetPayload<{
   select: typeof releaseSelect;
@@ -47,3 +51,9 @@ export type CreateReleaseTaskResponse = ReleaseTaskResponse;
 export type GetReleaseTasksParams = GetReleaseParams;
 
 export type GetReleaseTasksResponse = ReleaseTaskResponse[];
+
+export type RequestReviewReleaseParams = GetReleaseParams;
+
+export type RequestReviewReleaseResponse = Prisma.ReleaseGetPayload<{
+  select: typeof updateReleaseSelect;
+}>;

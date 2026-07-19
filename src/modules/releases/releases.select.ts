@@ -23,3 +23,13 @@ export const releaseTaskSelect = {
   type: true,
   createdAt: true,
 } satisfies Prisma.ReleaseTaskSelect;
+
+export const updateReleaseSelect = {
+  id: true,
+  version: true,
+  name: true,
+  status: true,
+  projectId: true,
+  environmentId: true,
+  updatedAt: true,
+} satisfies Prisma.ReleaseSelect;

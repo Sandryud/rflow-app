@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from 'generated/prisma/client';
-import { ReleaseStatus } from 'generated/prisma/enums';
+import { ApprovalStatus, ReleaseStatus } from 'generated/prisma/enums';
 
 import { ErrorMessage } from '@common/constants/error-message';
 import { ReleasesPolicy } from './releases.policy';
@@ -20,6 +20,8 @@ import type {
   GetReleaseResponse,
   GetReleaseTasksParams,
   GetReleaseTasksResponse,
+  RequestReviewReleaseParams,
+  RequestReviewReleaseResponse,
 } from './releases.types';
 
 @Injectable()
@@ -199,5 +201,71 @@ export class ReleasesService {
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2002'
     );
+  }
+
+  async requestReview({
+    userId,
+    releaseId,
+  }: RequestReviewReleaseParams): Promise<RequestReviewReleaseResponse> {
+    const membership = await this.releasesRepository.findReleaseMembership(
+      userId,
+      releaseId,
+    );
+
+    if (!membership) {
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
+    }
+
+    this.releasesPolicy.assertCanRequestReview(membership.role);
+
+    const releaseContext =
+      await this.releasesRepository.findReleaseRequestReviewContext(releaseId);
+
+    if (!releaseContext) {
+      throw new NotFoundException(ErrorMessage.RELEASE_NOT_FOUND);
+    }
+
+    if (releaseContext.status !== ReleaseStatus.DRAFT) {
+      throw new ConflictException(
+        'Release must be in DRAFT status to request review',
+      );
+    }
+
+    if (releaseContext.approvals.length === 0) {
+      throw new ConflictException('Release must have at least one approval');
+    }
+
+    const hasNonCreatorReviewer = releaseContext.approvals.some(
+      ({ reviewerUserId }) => reviewerUserId !== releaseContext.createdByUserId,
+    );
+
+    if (!hasNonCreatorReviewer) {
+      throw new ConflictException(
+        'Release creator cannot be the only reviewer',
+      );
+    }
+
+    const allApprovalsPending = releaseContext.approvals.every(
+      ({ status }) => status === ApprovalStatus.PENDING,
+    );
+
+    if (!allApprovalsPending) {
+      throw new ConflictException('All approvals must be pending');
+    }
+
+    try {
+      const updatedRelease =
+        await this.releasesRepository.requestReview(releaseId);
+      return updatedRelease;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new ConflictException('Release can no longer be sent to review');
+      }
+
+      throw error;
+    }
   }
 }

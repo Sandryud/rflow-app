@@ -8,6 +8,11 @@ export class ReleasesPolicy {
     MembershipRole.MANAGER,
   ]);
 
+  private readonly allowedRequestReviewRoles = new Set<MembershipRole>([
+    MembershipRole.OWNER,
+    MembershipRole.MANAGER,
+  ]);
+
   private readonly allowedCreateReleaseTaskRoles = new Set<MembershipRole>([
     MembershipRole.OWNER,
     MembershipRole.MANAGER,
@@ -26,6 +31,14 @@ export class ReleasesPolicy {
     if (!this.allowedCreateReleaseTaskRoles.has(role)) {
       throw new ForbiddenException(
         'You do not have permission to create release task',
+      );
+    }
+  }
+
+  assertCanRequestReview(role: MembershipRole) {
+    if (!this.allowedRequestReviewRoles.has(role)) {
+      throw new ForbiddenException(
+        'You do not have permission to request release review',
       );
     }
   }

@@ -76,4 +76,15 @@ export class ReleasesController {
       userId: req.user.userId,
     });
   }
+
+  @Post('/releases/:releaseId/request-review')
+  async requestReview(
+    @Param('releaseId') releaseId: string,
+    @Req() req: RequestWithUserType,
+  ) {
+    return this.releasesService.requestReview({
+      releaseId,
+      userId: req.user.userId,
+    });
+  }
 }
