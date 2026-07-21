@@ -42,4 +42,12 @@ export class ReleasesPolicy {
       );
     }
   }
+
+  assertCanDecideRelease(role: MembershipRole) {
+    if (!this.allowedRequestReviewRoles.has(role)) {
+      throw new ForbiddenException(
+        'You do not have permission to decide release status',
+      );
+    }
+  }
 }

@@ -87,4 +87,26 @@ export class ReleasesController {
       userId: req.user.userId,
     });
   }
+
+  @Post('/releases/:releaseId/approve')
+  async requestApprove(
+    @Param('releaseId') releaseId: string,
+    @Req() req: RequestWithUserType,
+  ) {
+    return this.releasesService.requestApprove({
+      releaseId,
+      userId: req.user.userId,
+    });
+  }
+
+  // @Post('/releases/:releaseId/reject')
+  // async requestReject(
+  //   @Param('releaseId') releaseId: string,
+  //   @Req() req: RequestWithUserType,
+  // ) {
+  //   return this.releasesService.requestReject({
+  //     releaseId,
+  //     userId: req.user.userId,
+  //   });
+  // }
 }

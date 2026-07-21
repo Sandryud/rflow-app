@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, ReleaseStatus } from 'generated/prisma/client';
+import {
+  ApprovalStatus,
+  ChecklistItemStatus,
+  Prisma,
+  ReleaseStatus,
+} from 'generated/prisma/client';
 
 import { PrismaService } from '@database/prisma.service';
 import {
@@ -150,6 +155,53 @@ export class ReleasesRepository {
         project: { deletedAt: null, organization: { deletedAt: null } },
       },
       data: { status: ReleaseStatus.IN_REVIEW },
+      select: updateReleaseSelect,
+    });
+  }
+
+  findReleaseReviewDecisionContext(releaseId: string) {
+    return this.prisma.release.findFirst({
+      where: {
+        deletedAt: null,
+        id: releaseId,
+        project: { deletedAt: null, organization: { deletedAt: null } },
+      },
+      select: {
+        status: true,
+        approvals: { select: { status: true, id: true } },
+        checkListItems: {
+          where: { isRequired: true },
+          select: { status: true },
+        },
+      },
+    });
+  }
+
+  approveRelease(releaseId: string) {
+    return this.prisma.release.update({
+      where: {
+        id: releaseId,
+        deletedAt: null,
+        status: ReleaseStatus.IN_REVIEW,
+        project: { deletedAt: null, organization: { deletedAt: null } },
+        checkListItems: {
+          none: {
+            isRequired: true,
+            status: { not: ChecklistItemStatus.DONE },
+          },
+        },
+        approvals: {
+          some: {
+            status: ApprovalStatus.APPROVED,
+          },
+          none: {
+            status: {
+              in: [ApprovalStatus.PENDING, ApprovalStatus.REJECTED],
+            },
+          },
+        },
+      },
+      data: { status: ReleaseStatus.APPROVED },
       select: updateReleaseSelect,
     });
   }

@@ -4,12 +4,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from 'generated/prisma/client';
-import { ApprovalStatus, ReleaseStatus } from 'generated/prisma/enums';
+import {
+  ApprovalStatus,
+  ChecklistItemStatus,
+  ReleaseStatus,
+} from 'generated/prisma/enums';
 
 import { ErrorMessage } from '@common/constants/error-message';
 import { ReleasesPolicy } from './releases.policy';
 import { ReleasesRepository } from './releases.repository';
 import type {
+  ApproveReleaseParams,
+  ApproveReleaseResponse,
   CreateReleaseParams,
   CreateReleaseResponse,
   CreateReleaseTaskParams,
@@ -23,6 +29,11 @@ import type {
   RequestReviewReleaseParams,
   RequestReviewReleaseResponse,
 } from './releases.types';
+
+const disallowedApproveStatuses: ApprovalStatus[] = [
+  ApprovalStatus.PENDING,
+  ApprovalStatus.REJECTED,
+];
 
 @Injectable()
 export class ReleasesService {
@@ -263,6 +274,78 @@ export class ReleasesService {
         error.code === 'P2025'
       ) {
         throw new ConflictException('Release can no longer be sent to review');
+      }
+
+      throw error;
+    }
+  }
+
+  async requestApprove({
+    releaseId,
+    userId,
+  }: ApproveReleaseParams): Promise<ApproveReleaseResponse> {
+    const membership = await this.releasesRepository.findReleaseMembership(
+      userId,
+      releaseId,
+    );
+
+    if (!membership) {
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
+    }
+
+    this.releasesPolicy.assertCanDecideRelease(membership.role);
+
+    const releaseContext =
+      await this.releasesRepository.findReleaseReviewDecisionContext(releaseId);
+
+    if (!releaseContext) {
+      throw new NotFoundException(ErrorMessage.RELEASE_NOT_FOUND);
+    }
+
+    if (releaseContext.status !== ReleaseStatus.IN_REVIEW) {
+      throw new ConflictException(
+        'Release must be in IN_REVIEW status to request approve',
+      );
+    }
+
+    const hasRequiredChecklist = releaseContext.checkListItems.find(
+      (checklist) => checklist.status !== ChecklistItemStatus.DONE,
+    );
+
+    if (hasRequiredChecklist) {
+      throw new ConflictException(
+        'The required checklist items must be completed',
+      );
+    }
+
+    const hasRejectOrPendingApproval = releaseContext.approvals.find(
+      (approval) => disallowedApproveStatuses.includes(approval.status),
+    );
+
+    if (hasRejectOrPendingApproval) {
+      throw new ConflictException(
+        'The approval status must not be REJECT or PENDING',
+      );
+    }
+
+    const hasApproved = releaseContext.approvals.find(
+      (approval) => approval.status === ApprovalStatus.APPROVED,
+    );
+
+    if (!hasApproved) {
+      throw new ConflictException('The release not be approved');
+    }
+
+    try {
+      const updatedRelease =
+        await this.releasesRepository.approveRelease(releaseId);
+      return updatedRelease;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new ConflictException('Release can no longer be approved');
       }
 
       throw error;
