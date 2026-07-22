@@ -167,6 +167,8 @@ export class ReleasesRepository {
         project: { deletedAt: null, organization: { deletedAt: null } },
       },
       select: {
+        projectId: true,
+        environmentId: true,
         status: true,
         approvals: { select: { status: true, id: true } },
         checkListItems: {
@@ -221,6 +223,44 @@ export class ReleasesRepository {
       },
       data: { status: ReleaseStatus.REJECTED },
       select: updateReleaseSelect,
+    });
+  }
+
+  reopenRelease(releaseId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const release = await tx.release.update({
+        where: {
+          id: releaseId,
+          deletedAt: null,
+          status: ReleaseStatus.REJECTED,
+          environment: {
+            deletedAt: null,
+            isActive: true,
+            project: {
+              releases: {
+                some: { id: releaseId },
+              },
+            },
+          },
+          project: {
+            deletedAt: null,
+            organization: { deletedAt: null },
+          },
+        },
+        data: { status: ReleaseStatus.DRAFT },
+        select: updateReleaseSelect,
+      });
+
+      await tx.approval.updateMany({
+        where: { releaseId },
+        data: {
+          status: ApprovalStatus.PENDING,
+          decidedAt: null,
+          comment: null,
+        },
+      });
+
+      return release;
     });
   }
 }

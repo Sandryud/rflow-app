@@ -109,4 +109,15 @@ export class ReleasesController {
       userId: req.user.userId,
     });
   }
+
+  @Post('/releases/:releaseId/reopen')
+  async requestReopen(
+    @Param('releaseId') releaseId: string,
+    @Req() req: RequestWithUserType,
+  ) {
+    return this.releasesService.requestReopen({
+      releaseId,
+      userId: req.user.userId,
+    });
+  }
 }

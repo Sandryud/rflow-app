@@ -19,9 +19,11 @@ type ReleasesRepositoryMock = {
   findReleaseMembership: jest.Mock;
   findReleaseRequestReviewContext: jest.Mock;
   findReleaseReviewDecisionContext: jest.Mock;
+  findActiveEnvironment: jest.Mock;
   requestReview: jest.Mock;
   approveRelease: jest.Mock;
   rejectRelease: jest.Mock;
+  reopenRelease: jest.Mock;
 };
 
 type ReleasesPolicyMock = {
@@ -53,6 +55,8 @@ type ReleaseContextFixture = {
 };
 
 type ReviewDecisionContextFixture = {
+  projectId: string;
+  environmentId: string;
   status: ReleaseStatus;
   approvals: Array<{ id: string; status: ApprovalStatus }>;
   checkListItems: Array<{ status: ChecklistItemStatus }>;
@@ -83,6 +87,8 @@ const updatedRelease = {
 };
 
 const reviewDecisionContext: ReviewDecisionContextFixture = {
+  projectId: 'project-id',
+  environmentId: 'environment-id',
   status: ReleaseStatus.IN_REVIEW,
   approvals: [
     {
@@ -105,9 +111,23 @@ const rejectedRelease = {
   updatedAt: new Date('2026-07-21T10:00:00.000Z'),
 };
 
+const reopenedRelease = {
+  ...updatedRelease,
+  status: ReleaseStatus.DRAFT,
+  updatedAt: new Date('2026-07-22T10:00:00.000Z'),
+};
+
+const activeEnvironment = {
+  id: 'environment-id',
+  projectId: 'project-id',
+  isActive: true,
+  deletedAt: null,
+};
+
 const requestReviewParams = { releaseId, userId };
 const approveReleaseParams = { releaseId, userId };
 const rejectReleaseParams = { releaseId, userId };
+const reopenReleaseParams = { releaseId, userId };
 
 const createReleaseContext = (
   overrides: Partial<typeof releaseContext> = {},
@@ -127,9 +147,11 @@ const createReleasesRepositoryMock = (): ReleasesRepositoryMock => ({
   findReleaseMembership: jest.fn(),
   findReleaseRequestReviewContext: jest.fn(),
   findReleaseReviewDecisionContext: jest.fn(),
+  findActiveEnvironment: jest.fn(),
   requestReview: jest.fn(),
   approveRelease: jest.fn(),
   rejectRelease: jest.fn(),
+  reopenRelease: jest.fn(),
 });
 
 const createReleasesPolicyMock = (): ReleasesPolicyMock => ({
@@ -180,6 +202,15 @@ const arrangeRejectableRelease = (
   repository.findReleaseMembership.mockResolvedValue(membership);
   repository.findReleaseReviewDecisionContext.mockResolvedValue(context);
   repository.rejectRelease.mockResolvedValue(rejectedRelease);
+};
+
+const arrangeReopenableRelease = (repository: ReleasesRepositoryMock) => {
+  repository.findReleaseMembership.mockResolvedValue(membership);
+  repository.findReleaseReviewDecisionContext.mockResolvedValue(
+    createReviewDecisionContext({ status: ReleaseStatus.REJECTED }),
+  );
+  repository.findActiveEnvironment.mockResolvedValue(activeEnvironment);
+  repository.reopenRelease.mockResolvedValue(reopenedRelease);
 };
 
 const createP2025Error = () =>
@@ -618,6 +649,124 @@ describe('ReleasesService', () => {
       repository.rejectRelease.mockRejectedValue(error);
 
       await expect(service.requestReject(rejectReleaseParams)).rejects.toBe(
+        error,
+      );
+    });
+  });
+
+  describe('requestReopen', () => {
+    it('returns the release transitioned from REJECTED to DRAFT', async () => {
+      const { repository, service } = createService();
+      arrangeReopenableRelease(repository);
+
+      const result = await service.requestReopen(reopenReleaseParams);
+
+      expect(result).toEqual(reopenedRelease);
+    });
+
+    it('reopens the selected release', async () => {
+      const { repository, service } = createService();
+      arrangeReopenableRelease(repository);
+
+      await service.requestReopen(reopenReleaseParams);
+
+      expect(repository.reopenRelease).toHaveBeenCalledWith(releaseId);
+    });
+
+    it('returns not found when the user is not an organization member', async () => {
+      const { repository, service } = createService();
+      repository.findReleaseMembership.mockResolvedValue(null);
+
+      await expect(service.requestReopen(reopenReleaseParams)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(repository.reopenRelease).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      MembershipRole.DEVELOPER,
+      MembershipRole.QA,
+      MembershipRole.VIEWER,
+    ])('forbids a %s from reopening a release', async (role) => {
+      const { policy, repository, service } = createService();
+      repository.findReleaseMembership.mockResolvedValue({
+        ...membership,
+        role,
+      });
+      policy.assertCanDecideRelease.mockImplementation(() => {
+        throw new ForbiddenException();
+      });
+
+      await expect(service.requestReopen(reopenReleaseParams)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(repository.reopenRelease).not.toHaveBeenCalled();
+    });
+
+    it('returns not found when the release context is unavailable', async () => {
+      const { repository, service } = createService();
+      repository.findReleaseMembership.mockResolvedValue(membership);
+      repository.findReleaseReviewDecisionContext.mockResolvedValue(null);
+
+      await expect(service.requestReopen(reopenReleaseParams)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(repository.reopenRelease).not.toHaveBeenCalled();
+    });
+
+    it('returns conflict when the release is not REJECTED', async () => {
+      const { repository, service } = createService();
+      repository.findReleaseMembership.mockResolvedValue(membership);
+      repository.findReleaseReviewDecisionContext.mockResolvedValue(
+        createReviewDecisionContext({ status: ReleaseStatus.IN_REVIEW }),
+      );
+
+      await expect(service.requestReopen(reopenReleaseParams)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(repository.reopenRelease).not.toHaveBeenCalled();
+    });
+
+    it('returns not found when the environment is unavailable', async () => {
+      const { repository, service } = createService();
+      arrangeReopenableRelease(repository);
+      repository.findActiveEnvironment.mockResolvedValue(null);
+
+      await expect(service.requestReopen(reopenReleaseParams)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(repository.reopenRelease).not.toHaveBeenCalled();
+    });
+
+    it('checks the release environment in its project', async () => {
+      const { repository, service } = createService();
+      arrangeReopenableRelease(repository);
+
+      await service.requestReopen(reopenReleaseParams);
+
+      expect(repository.findActiveEnvironment).toHaveBeenCalledWith(
+        'project-id',
+        'environment-id',
+      );
+    });
+
+    it('maps a concurrent Prisma update failure to ConflictException', async () => {
+      const { repository, service } = createService();
+      arrangeReopenableRelease(repository);
+      repository.reopenRelease.mockRejectedValue(createP2025Error());
+
+      await expect(service.requestReopen(reopenReleaseParams)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('rethrows an unexpected repository error', async () => {
+      const { repository, service } = createService();
+      const error = new Error('Database unavailable');
+      arrangeReopenableRelease(repository);
+      repository.reopenRelease.mockRejectedValue(error);
+
+      await expect(service.requestReopen(reopenReleaseParams)).rejects.toBe(
         error,
       );
     });

@@ -69,3 +69,9 @@ export type RejectReleaseParams = GetReleaseParams;
 export type RejectReleaseResponse = Prisma.ReleaseGetPayload<{
   select: typeof updateReleaseSelect;
 }>;
+
+export type ReopenReleaseParams = GetReleaseParams;
+
+export type ReopenReleaseResponse = Prisma.ReleaseGetPayload<{
+  select: typeof updateReleaseSelect;
+}>;
