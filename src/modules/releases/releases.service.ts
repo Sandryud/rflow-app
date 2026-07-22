@@ -26,6 +26,8 @@ import type {
   GetReleaseResponse,
   GetReleaseTasksParams,
   GetReleaseTasksResponse,
+  RejectReleaseParams,
+  RejectReleaseResponse,
   RequestReviewReleaseParams,
   RequestReviewReleaseResponse,
 } from './releases.types';
@@ -346,6 +348,60 @@ export class ReleasesService {
         error.code === 'P2025'
       ) {
         throw new ConflictException('Release can no longer be approved');
+      }
+
+      throw error;
+    }
+  }
+
+  async requestReject({
+    releaseId,
+    userId,
+  }: RejectReleaseParams): Promise<RejectReleaseResponse> {
+    const membership = await this.releasesRepository.findReleaseMembership(
+      userId,
+      releaseId,
+    );
+
+    if (!membership) {
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
+    }
+
+    this.releasesPolicy.assertCanDecideRelease(membership.role);
+
+    const releaseContext =
+      await this.releasesRepository.findReleaseReviewDecisionContext(releaseId);
+
+    if (!releaseContext) {
+      throw new NotFoundException(ErrorMessage.RELEASE_NOT_FOUND);
+    }
+
+    if (releaseContext.status !== ReleaseStatus.IN_REVIEW) {
+      throw new ConflictException(
+        'Release must be in IN_REVIEW status to request reject',
+      );
+    }
+
+    const hasRejected = releaseContext.approvals.some(
+      (approval) => approval.status === ApprovalStatus.REJECTED,
+    );
+
+    if (!hasRejected) {
+      throw new ConflictException(
+        'Release must have at least one rejected approval',
+      );
+    }
+
+    try {
+      const updatedRelease =
+        await this.releasesRepository.rejectRelease(releaseId);
+      return updatedRelease;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new ConflictException('Release can no longer be rejected');
       }
 
       throw error;

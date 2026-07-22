@@ -205,4 +205,22 @@ export class ReleasesRepository {
       select: updateReleaseSelect,
     });
   }
+
+  rejectRelease(releaseId: string) {
+    return this.prisma.release.update({
+      where: {
+        id: releaseId,
+        deletedAt: null,
+        status: ReleaseStatus.IN_REVIEW,
+        project: { deletedAt: null, organization: { deletedAt: null } },
+        approvals: {
+          some: {
+            status: ApprovalStatus.REJECTED,
+          },
+        },
+      },
+      data: { status: ReleaseStatus.REJECTED },
+      select: updateReleaseSelect,
+    });
+  }
 }

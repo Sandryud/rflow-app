@@ -21,6 +21,7 @@ type ReleasesRepositoryMock = {
   findReleaseReviewDecisionContext: jest.Mock;
   requestReview: jest.Mock;
   approveRelease: jest.Mock;
+  rejectRelease: jest.Mock;
 };
 
 type ReleasesPolicyMock = {
@@ -98,8 +99,15 @@ const approvedRelease = {
   updatedAt: new Date('2026-07-20T10:00:00.000Z'),
 };
 
+const rejectedRelease = {
+  ...updatedRelease,
+  status: ReleaseStatus.REJECTED,
+  updatedAt: new Date('2026-07-21T10:00:00.000Z'),
+};
+
 const requestReviewParams = { releaseId, userId };
 const approveReleaseParams = { releaseId, userId };
+const rejectReleaseParams = { releaseId, userId };
 
 const createReleaseContext = (
   overrides: Partial<typeof releaseContext> = {},
@@ -121,6 +129,7 @@ const createReleasesRepositoryMock = (): ReleasesRepositoryMock => ({
   findReleaseReviewDecisionContext: jest.fn(),
   requestReview: jest.fn(),
   approveRelease: jest.fn(),
+  rejectRelease: jest.fn(),
 });
 
 const createReleasesPolicyMock = (): ReleasesPolicyMock => ({
@@ -155,6 +164,22 @@ const arrangeApprovableRelease = (
   repository.findReleaseMembership.mockResolvedValue(membership);
   repository.findReleaseReviewDecisionContext.mockResolvedValue(context);
   repository.approveRelease.mockResolvedValue(approvedRelease);
+};
+
+const arrangeRejectableRelease = (
+  repository: ReleasesRepositoryMock,
+  context = createReviewDecisionContext({
+    approvals: [
+      {
+        id: 'approval-id',
+        status: ApprovalStatus.REJECTED,
+      },
+    ],
+  }),
+) => {
+  repository.findReleaseMembership.mockResolvedValue(membership);
+  repository.findReleaseReviewDecisionContext.mockResolvedValue(context);
+  repository.rejectRelease.mockResolvedValue(rejectedRelease);
 };
 
 const createP2025Error = () =>
@@ -448,6 +473,151 @@ describe('ReleasesService', () => {
       repository.approveRelease.mockRejectedValue(error);
 
       await expect(service.requestApprove(approveReleaseParams)).rejects.toBe(
+        error,
+      );
+    });
+  });
+
+  describe('requestReject', () => {
+    it('returns the release transitioned from IN_REVIEW to REJECTED', async () => {
+      const { repository, service } = createService();
+      arrangeRejectableRelease(repository);
+
+      const result = await service.requestReject(rejectReleaseParams);
+
+      expect(result).toEqual(rejectedRelease);
+    });
+
+    it('rejects the selected release', async () => {
+      const { repository, service } = createService();
+      arrangeRejectableRelease(repository);
+
+      await service.requestReject(rejectReleaseParams);
+
+      expect(repository.rejectRelease).toHaveBeenCalledWith(releaseId);
+    });
+
+    it('returns not found when the user is not an organization member', async () => {
+      const { repository, service } = createService();
+      repository.findReleaseMembership.mockResolvedValue(null);
+
+      await expect(service.requestReject(rejectReleaseParams)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(repository.rejectRelease).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      MembershipRole.DEVELOPER,
+      MembershipRole.QA,
+      MembershipRole.VIEWER,
+    ])('forbids a %s from rejecting a release', async (role) => {
+      const { policy, repository, service } = createService();
+      repository.findReleaseMembership.mockResolvedValue({
+        ...membership,
+        role,
+      });
+      policy.assertCanDecideRelease.mockImplementation(() => {
+        throw new ForbiddenException();
+      });
+
+      await expect(service.requestReject(rejectReleaseParams)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(repository.rejectRelease).not.toHaveBeenCalled();
+    });
+
+    it('returns not found when the release context is unavailable', async () => {
+      const { repository, service } = createService();
+      repository.findReleaseMembership.mockResolvedValue(membership);
+      repository.findReleaseReviewDecisionContext.mockResolvedValue(null);
+
+      await expect(service.requestReject(rejectReleaseParams)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(repository.rejectRelease).not.toHaveBeenCalled();
+    });
+
+    it('returns conflict when the release is not in IN_REVIEW status', async () => {
+      const { repository, service } = createService();
+      arrangeRejectableRelease(
+        repository,
+        createReviewDecisionContext({
+          status: ReleaseStatus.DRAFT,
+          approvals: [{ id: 'approval-id', status: ApprovalStatus.REJECTED }],
+        }),
+      );
+
+      await expect(service.requestReject(rejectReleaseParams)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(repository.rejectRelease).not.toHaveBeenCalled();
+    });
+
+    it('returns conflict when the release has no rejected approval', async () => {
+      const { repository, service } = createService();
+      arrangeRejectableRelease(
+        repository,
+        createReviewDecisionContext({
+          approvals: [{ id: 'approval-id', status: ApprovalStatus.APPROVED }],
+        }),
+      );
+
+      await expect(service.requestReject(rejectReleaseParams)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(repository.rejectRelease).not.toHaveBeenCalled();
+    });
+
+    it('allows pending approvals when a rejected approval exists', async () => {
+      const { repository, service } = createService();
+      arrangeRejectableRelease(
+        repository,
+        createReviewDecisionContext({
+          approvals: [
+            { id: 'rejected-id', status: ApprovalStatus.REJECTED },
+            { id: 'pending-id', status: ApprovalStatus.PENDING },
+          ],
+        }),
+      );
+
+      const result = await service.requestReject(rejectReleaseParams);
+
+      expect(result).toEqual(rejectedRelease);
+    });
+
+    it('does not require completed checklist items to reject a release', async () => {
+      const { repository, service } = createService();
+      arrangeRejectableRelease(
+        repository,
+        createReviewDecisionContext({
+          approvals: [{ id: 'approval-id', status: ApprovalStatus.REJECTED }],
+          checkListItems: [{ status: ChecklistItemStatus.BLOCKED }],
+        }),
+      );
+
+      const result = await service.requestReject(rejectReleaseParams);
+
+      expect(result).toEqual(rejectedRelease);
+    });
+
+    it('maps a concurrent Prisma update failure to ConflictException', async () => {
+      const { repository, service } = createService();
+      arrangeRejectableRelease(repository);
+      repository.rejectRelease.mockRejectedValue(createP2025Error());
+
+      await expect(service.requestReject(rejectReleaseParams)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('rethrows an unexpected repository error', async () => {
+      const { repository, service } = createService();
+      const error = new Error('Database unavailable');
+      arrangeRejectableRelease(repository);
+      repository.rejectRelease.mockRejectedValue(error);
+
+      await expect(service.requestReject(rejectReleaseParams)).rejects.toBe(
         error,
       );
     });
