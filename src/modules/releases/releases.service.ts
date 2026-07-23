@@ -26,6 +26,8 @@ import type {
   GetReleaseResponse,
   GetReleaseTasksParams,
   GetReleaseTasksResponse,
+  MarkReleaseAsReleasedParams,
+  MarkReleaseAsReleasedResponse,
   RejectReleaseParams,
   RejectReleaseResponse,
   ReopenReleaseParams,
@@ -460,6 +462,62 @@ export class ReleasesService {
         error.code === 'P2025'
       ) {
         throw new ConflictException('Release can no longer be reopened');
+      }
+
+      throw error;
+    }
+  }
+
+  async requestRelease({
+    userId,
+    releaseId,
+  }: MarkReleaseAsReleasedParams): Promise<MarkReleaseAsReleasedResponse> {
+    const membership = await this.releasesRepository.findReleaseMembership(
+      userId,
+      releaseId,
+    );
+
+    if (!membership) {
+      throw new NotFoundException(ErrorMessage.NOT_ORGANIZATION_MEMBER);
+    }
+
+    this.releasesPolicy.assertCanDecideRelease(membership.role);
+
+    const releaseContext =
+      await this.releasesRepository.findReleaseReviewDecisionContext(releaseId);
+
+    if (!releaseContext) {
+      throw new NotFoundException(ErrorMessage.RELEASE_NOT_FOUND);
+    }
+
+    if (releaseContext.status !== ReleaseStatus.APPROVED) {
+      throw new ConflictException(
+        'Release must be in APPROVED status to request release',
+      );
+    }
+
+    const environment = await this.releasesRepository.findActiveEnvironment(
+      releaseContext.projectId,
+      releaseContext.environmentId,
+    );
+
+    if (!environment) {
+      throw new NotFoundException(
+        'The environment is not active for release status',
+      );
+    }
+
+    try {
+      const updatedRelease =
+        await this.releasesRepository.requestRelease(releaseId);
+
+      return updatedRelease;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new ConflictException('Release can no longer be released');
       }
 
       throw error;

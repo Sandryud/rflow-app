@@ -263,4 +263,29 @@ export class ReleasesRepository {
       return release;
     });
   }
+
+  requestRelease(releaseId: string) {
+    return this.prisma.release.update({
+      where: {
+        id: releaseId,
+        deletedAt: null,
+        status: ReleaseStatus.APPROVED,
+        project: {
+          deletedAt: null,
+          organization: { deletedAt: null },
+        },
+        environment: {
+          deletedAt: null,
+          isActive: true,
+          project: {
+            releases: {
+              some: { id: releaseId },
+            },
+          },
+        },
+      },
+      data: { status: ReleaseStatus.RELEASED },
+      select: updateReleaseSelect,
+    });
+  }
 }

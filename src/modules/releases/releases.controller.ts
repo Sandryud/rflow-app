@@ -120,4 +120,15 @@ export class ReleasesController {
       userId: req.user.userId,
     });
   }
+
+  @Post('/releases/:releaseId/release')
+  async requestRelease(
+    @Param('releaseId') releaseId: string,
+    @Req() req: RequestWithUserType,
+  ) {
+    return this.releasesService.requestRelease({
+      releaseId,
+      userId: req.user.userId,
+    });
+  }
 }

@@ -75,3 +75,9 @@ export type ReopenReleaseParams = GetReleaseParams;
 export type ReopenReleaseResponse = Prisma.ReleaseGetPayload<{
   select: typeof updateReleaseSelect;
 }>;
+
+export type MarkReleaseAsReleasedParams = GetReleaseParams;
+
+export type MarkReleaseAsReleasedResponse = Prisma.ReleaseGetPayload<{
+  select: typeof updateReleaseSelect;
+}>;
