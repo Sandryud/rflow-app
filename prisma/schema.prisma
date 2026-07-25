@@ -30,6 +30,7 @@ model User {
   completedChecklistItems ChecklistItem[] @relation("ChecklistItemCompletedBy")
   reviewerApprovals       Approval[]
   authoredComments        Comment[]
+  actorAuditEvents        AuditEvent[]
 }
 
 enum MembershipRole {
@@ -62,6 +63,7 @@ model Organization {
   deletedAt   DateTime?
   memberships Membership[]
   projects    Project[]
+  auditEvents AuditEvent[]
 }
 
 model Project {
@@ -75,6 +77,7 @@ model Project {
   deletedAt      DateTime?
   environments   Environment[]
   releases       Release[]
+  auditEvents    AuditEvent[]
 
   @@unique([organizationId, name])
 }
@@ -124,6 +127,7 @@ model Release {
   checkListItems   ChecklistItem[]
   approvals        Approval[]
   comments         Comment[]
+  auditEvents      AuditEvent[]
 
   @@unique([projectId, version])
 }
@@ -208,4 +212,25 @@ model Comment {
   deletedAt    DateTime?
 
   @@index([releaseId, deletedAt, createdAt])
+}
+
+model AuditEvent {
+  id             String       @id @default(uuid())
+  action         String       @db.VarChar(100)
+  entityType     String       @db.VarChar(100)
+  entityId       String
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  releaseId      String?
+  release        Release?     @relation(fields: [releaseId], references: [id])
+  projectId      String?
+  project        Project?     @relation(fields: [projectId], references: [id])
+  actorUserId    String
+  actor          User         @relation(fields: [actorUserId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([releaseId, createdAt, id])
+  @@index([projectId, createdAt, id])
+  @@index([organizationId, createdAt, id])
 }
