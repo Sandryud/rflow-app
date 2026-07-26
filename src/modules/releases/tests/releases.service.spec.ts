@@ -52,6 +52,9 @@ type ReleaseContextFixture = {
   createdByUserId: string;
   projectId: string;
   environmentId: string;
+  project: {
+    organizationId: string;
+  };
   approvals: ApprovalFixture[];
 };
 
@@ -74,6 +77,9 @@ const releaseContext: ReleaseContextFixture = {
   createdByUserId: creatorUserId,
   projectId: 'project-id',
   environmentId: 'environment-id',
+  project: {
+    organizationId: 'organization-id',
+  },
   approvals: [pendingApproval],
 };
 
@@ -258,7 +264,12 @@ describe('ReleasesService', () => {
 
       await service.requestReview(requestReviewParams);
 
-      expect(repository.requestReview).toHaveBeenCalledWith(releaseId);
+      expect(repository.requestReview).toHaveBeenCalledWith({
+        releaseId,
+        actorUserId: userId,
+        organizationId: releaseContext.project.organizationId,
+        projectId: releaseContext.projectId,
+      });
     });
 
     it('returns not found when the user is not an organization member', async () => {
