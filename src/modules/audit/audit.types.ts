@@ -22,3 +22,15 @@ export type AuditCursorData = {
   id: string;
   createdAt: Date;
 };
+
+export type CreateAuditEventData = Pick<
+  Prisma.AuditEventUncheckedCreateInput,
+  | 'organizationId'
+  | 'projectId'
+  | 'releaseId'
+  | 'actorUserId'
+  | 'action'
+  | 'entityType'
+  | 'entityId'
+  | 'metadata'
+>;

@@ -104,6 +104,11 @@ export class ReleasesRepository {
         createdByUserId: true,
         projectId: true,
         environmentId: true,
+        project: {
+          select: {
+            organizationId: true,
+          },
+        },
         approvals: {
           select: {
             reviewerUserId: true,

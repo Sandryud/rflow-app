@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import type { Prisma } from 'generated/prisma/client';
 
 import { PrismaService } from '@database/prisma.service';
 import { auditEventSelect } from './audit.select';
-import type { AuditCursorData } from './audit.types';
+import type { AuditCursorData, CreateAuditEventData } from './audit.types';
 
 @Injectable()
 export class AuditRepository {
@@ -61,5 +62,12 @@ export class AuditRepository {
         role: true,
       },
     });
+  }
+
+  createAuditEvent(
+    transactionClient: Prisma.TransactionClient,
+    eventData: CreateAuditEventData,
+  ) {
+    return transactionClient.auditEvent.create({ data: eventData });
   }
 }
