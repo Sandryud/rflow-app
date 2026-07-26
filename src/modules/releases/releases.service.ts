@@ -271,8 +271,12 @@ export class ReleasesService {
     }
 
     try {
-      const updatedRelease =
-        await this.releasesRepository.requestReview(releaseId);
+      const updatedRelease = await this.releasesRepository.requestReview({
+        releaseId,
+        actorUserId: userId,
+        organizationId: releaseContext.project.organizationId,
+        projectId: releaseContext.projectId,
+      });
       return updatedRelease;
     } catch (error) {
       if (

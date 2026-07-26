@@ -7,15 +7,26 @@ import {
 } from 'generated/prisma/client';
 
 import { PrismaService } from '@database/prisma.service';
+import { AuditRepository } from '@modules/audit/audit.repository';
 import {
   releaseSelect,
   releaseTaskSelect,
   updateReleaseSelect,
 } from './releases.select';
 
+type RequestReviewTransactionParams = {
+  releaseId: string;
+  actorUserId: string;
+  organizationId: string;
+  projectId: string;
+};
+
 @Injectable()
 export class ReleasesRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditRepository: AuditRepository,
+  ) {}
 
   findProjectMembership(userId: string, projectId: string) {
     return this.prisma.membership.findFirst({
@@ -151,16 +162,39 @@ export class ReleasesRepository {
     });
   }
 
-  requestReview(releaseId: string) {
-    return this.prisma.release.update({
-      where: {
-        id: releaseId,
-        deletedAt: null,
-        status: ReleaseStatus.DRAFT,
-        project: { deletedAt: null, organization: { deletedAt: null } },
-      },
-      data: { status: ReleaseStatus.IN_REVIEW },
-      select: updateReleaseSelect,
+  requestReview({
+    actorUserId,
+    releaseId,
+    organizationId,
+    projectId,
+  }: RequestReviewTransactionParams) {
+    return this.prisma.$transaction(async (tx) => {
+      const release = await tx.release.update({
+        where: {
+          id: releaseId,
+          deletedAt: null,
+          status: ReleaseStatus.DRAFT,
+          project: { deletedAt: null, organization: { deletedAt: null } },
+        },
+        data: { status: ReleaseStatus.IN_REVIEW },
+        select: updateReleaseSelect,
+      });
+
+      await this.auditRepository.createAuditEvent(tx, {
+        organizationId,
+        projectId,
+        releaseId,
+        actorUserId,
+        action: 'release.review_requested',
+        entityType: 'release',
+        entityId: releaseId,
+        metadata: {
+          fromStatus: ReleaseStatus.DRAFT,
+          toStatus: ReleaseStatus.IN_REVIEW,
+        },
+      });
+
+      return release;
     });
   }
 
