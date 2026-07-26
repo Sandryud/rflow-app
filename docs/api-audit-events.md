@@ -2,6 +2,8 @@
 
 Этот документ фиксирует, какие бизнес-действия создают `AuditEvent`.
 
+Матрица описывает целевое покрытие аудита. В текущей реализации запись AuditEvent подключена только к `POST /api/v1/releases/:releaseId/request-review`.
+
 Принципы:
 
 - `AuditEvent` создаёт только backend.
@@ -21,120 +23,120 @@
 
 ### OrganizationsModule
 
-| Business action | Endpoint | Creates AuditEvent | action | entity_type | metadata |
-| --------------- | -------- | :----------------: | ------ | ----------- | -------- |
-| Создать организацию | `POST /api/v1/organizations` | A | `organization.created` | `Organization` | `{ id, name }` |
-| Изменить организацию | `PATCH /api/v1/organizations/:organizationId` | A | `organization.updated` | `Organization` | `{ id, changes: { before, after } }` |
-| Удалить организацию | `DELETE /api/v1/organizations/:organizationId` | A | `organization.deleted` | `Organization` | `{ id, name }` |
+| Business action      | Endpoint                                       | Creates AuditEvent | action                 | entity_type    | metadata                             |
+| -------------------- | ---------------------------------------------- | :----------------: | ---------------------- | -------------- | ------------------------------------ |
+| Создать организацию  | `POST /api/v1/organizations`                   |         A          | `organization.created` | `Organization` | `{ id, name }`                       |
+| Изменить организацию | `PATCH /api/v1/organizations/:organizationId`  |         A          | `organization.updated` | `Organization` | `{ id, changes: { before, after } }` |
+| Удалить организацию  | `DELETE /api/v1/organizations/:organizationId` |         A          | `organization.deleted` | `Organization` | `{ id, name }`                       |
 
 ---
 
 ### MembershipsModule
 
-| Business action | Endpoint | Creates AuditEvent | action | entity_type | metadata |
-| --------------- | -------- | :----------------: | ------ | ----------- | -------- |
-| Добавить участника | `POST /api/v1/organizations/:organizationId/memberships` | A | `membership.created` | `Membership` | `{ membership_id, user_name, user_email, role, organization_id, organization_name }` |
-| Изменить роль участника | `PATCH /api/v1/memberships/:membershipId` | A | `membership.updated` | `Membership` | `{ membership_id, user_name, user_email, role: { from, to }, organization_id, organization_name }` |
-| Удалить участника | `DELETE /api/v1/memberships/:membershipId` | A | `membership.deleted` | `Membership` | `{ membership_id, user_name, user_email, role, organization_id, organization_name }` |
+| Business action         | Endpoint                                                 | Creates AuditEvent | action               | entity_type  | metadata                                                                                           |
+| ----------------------- | -------------------------------------------------------- | :----------------: | -------------------- | ------------ | -------------------------------------------------------------------------------------------------- |
+| Добавить участника      | `POST /api/v1/organizations/:organizationId/memberships` |         A          | `membership.created` | `Membership` | `{ membership_id, user_name, user_email, role, organization_id, organization_name }`               |
+| Изменить роль участника | `PATCH /api/v1/memberships/:membershipId`                |         A          | `membership.updated` | `Membership` | `{ membership_id, user_name, user_email, role: { from, to }, organization_id, organization_name }` |
+| Удалить участника       | `DELETE /api/v1/memberships/:membershipId`               |         A          | `membership.deleted` | `Membership` | `{ membership_id, user_name, user_email, role, organization_id, organization_name }`               |
 
 ---
 
 ### ProjectsModule
 
-| Business action | Endpoint | Creates AuditEvent | action | entity_type | metadata |
-| --------------- | -------- | :----------------: | ------ | ----------- | -------- |
-| Создать проект | `POST /api/v1/organizations/:organizationId/projects` | A | `project.created` | `Project` | `{ project_name, project_id, organization_id, organization_name }` |
-| Изменить проект | `PATCH /api/v1/projects/:projectId` | A | `project.updated` | `Project` | `{ project_id, project_name, changes: { before, after }, organization_id, organization_name }` |
-| Удалить проект | `DELETE /api/v1/projects/:projectId` | A | `project.deleted` | `Project` | `{ project_id, project_name, organization_id, organization_name }` |
+| Business action | Endpoint                                              | Creates AuditEvent | action            | entity_type | metadata                                                                                       |
+| --------------- | ----------------------------------------------------- | :----------------: | ----------------- | ----------- | ---------------------------------------------------------------------------------------------- |
+| Создать проект  | `POST /api/v1/organizations/:organizationId/projects` |         A          | `project.created` | `Project`   | `{ project_name, project_id, organization_id, organization_name }`                             |
+| Изменить проект | `PATCH /api/v1/projects/:projectId`                   |         A          | `project.updated` | `Project`   | `{ project_id, project_name, changes: { before, after }, organization_id, organization_name }` |
+| Удалить проект  | `DELETE /api/v1/projects/:projectId`                  |         A          | `project.deleted` | `Project`   | `{ project_id, project_name, organization_id, organization_name }`                             |
 
 ---
 
 ### EnvironmentsModule
 
-| Business action | Endpoint | Creates AuditEvent | action | entity_type | metadata |
-| --------------- | -------- | :----------------: | ------ | ----------- | -------- |
-| Создать environment | `POST /api/v1/projects/:projectId/environments` | A | `environment.created` | `Environment` | `{ environment_name, environment_id, project_id, project_name }` |
-| Изменить environment | `PATCH /api/v1/environments/:environmentId` | A | `environment.updated` | `Environment` | `{ environment_name, environment_id, project_id, project_name, changes: { before, after } }` |
-| Удалить environment | `DELETE /api/v1/environments/:environmentId` | A | `environment.deleted` | `Environment` | `{ environment_name, environment_id, project_id, project_name }` |
+| Business action      | Endpoint                                        | Creates AuditEvent | action                | entity_type   | metadata                                                                                     |
+| -------------------- | ----------------------------------------------- | :----------------: | --------------------- | ------------- | -------------------------------------------------------------------------------------------- |
+| Создать environment  | `POST /api/v1/projects/:projectId/environments` |         A          | `environment.created` | `Environment` | `{ environment_name, environment_id, project_id, project_name }`                             |
+| Изменить environment | `PATCH /api/v1/environments/:environmentId`     |         A          | `environment.updated` | `Environment` | `{ environment_name, environment_id, project_id, project_name, changes: { before, after } }` |
+| Удалить environment  | `DELETE /api/v1/environments/:environmentId`    |         A          | `environment.deleted` | `Environment` | `{ environment_name, environment_id, project_id, project_name }`                             |
 
 ---
 
 ### ReleasesModule
 
-| Business action | Endpoint | Creates AuditEvent | action | entity_type | metadata |
-| --------------- | -------- | :----------------: | ------ | ----------- | -------- |
-| Создать release | `POST /api/v1/projects/:projectId/releases` | A | `release.created` | `Release` | `{ release_name, release_id, release_version, project_id, project_name }` |
-| Изменить release | `PATCH /api/v1/releases/:releaseId` | A | `release.updated` | `Release` | `{ release_name, release_id, release_version, project_id, project_name, changes: { before, after } }` |
-| Удалить release | `DELETE /api/v1/releases/:releaseId` | A | `release.deleted` | `Release` | `{ release_name, release_id, release_version, project_id, project_name }` |
-| Отправить release на review | `POST /api/v1/releases/:releaseId/request-review` | A | `release.review_requested` | `Release` | `{ release_name, release_id, release_version, project_id, project_name, status: { from, to } }` |
-| Approve release | `POST /api/v1/releases/:releaseId/approve` | A | `release.approved` | `Release` | `{ release_name, release_id, release_version, project_id, project_name, status: { from, to } }` |
-| Reject release | `POST /api/v1/releases/:releaseId/reject` | A | `release.rejected` | `Release` | `{ release_name, release_id, release_version, project_id, project_name, status: { from, to } }` |
-| Mark release as released | `POST /api/v1/releases/:releaseId/release` | A | `release.released` | `Release` | `{ release_name, release_id, release_version, project_id, project_name, status: { from, to } }` |
-| Cancel release | `POST /api/v1/releases/:releaseId/cancel` | A | `release.cancelled` | `Release` | `{ release_name, release_id, release_version, project_id, project_name, status: { from, to } }` |
-| Создать release task | `POST /api/v1/releases/:releaseId/release-tasks` | A | `release_task.created` | `ReleaseTask` | `{ release_name, release_id, release_version, project_id, project_name, release_task_name, release_task_id, release_task_key, release_task_url }` |
-| Изменить release task | `PATCH /api/v1/release-tasks/:releaseTaskId` | A | `release_task.updated` | `ReleaseTask` | `{ release_name, release_id, release_version, project_id, project_name, release_task_name, release_task_id, release_task_key, release_task_url, changes: { before, after } }` |
-| Удалить release task | `DELETE /api/v1/release-tasks/:releaseTaskId` | A | `release_task.deleted` | `ReleaseTask` | `{ release_name, release_id, release_version, project_id, project_name, release_task_name, release_task_id, release_task_key, release_task_url }` |
+| Business action             | Endpoint                                          | Creates AuditEvent | action                     | entity_type   | metadata                                                                                                                                                                      |
+| --------------------------- | ------------------------------------------------- | :----------------: | -------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Создать release             | `POST /api/v1/projects/:projectId/releases`       |         A          | `release.created`          | `Release`     | `{ release_name, release_id, release_version, project_id, project_name }`                                                                                                     |
+| Изменить release            | `PATCH /api/v1/releases/:releaseId`               |         A          | `release.updated`          | `Release`     | `{ release_name, release_id, release_version, project_id, project_name, changes: { before, after } }`                                                                         |
+| Удалить release             | `DELETE /api/v1/releases/:releaseId`              |         A          | `release.deleted`          | `Release`     | `{ release_name, release_id, release_version, project_id, project_name }`                                                                                                     |
+| Отправить release на review | `POST /api/v1/releases/:releaseId/request-review` |         A          | `release.review_requested` | `release`     | `{ fromStatus: "DRAFT", toStatus: "IN_REVIEW" }`                                                                                                                              |
+| Approve release             | `POST /api/v1/releases/:releaseId/approve`        |         A          | `release.approved`         | `Release`     | `{ release_name, release_id, release_version, project_id, project_name, status: { from, to } }`                                                                               |
+| Reject release              | `POST /api/v1/releases/:releaseId/reject`         |         A          | `release.rejected`         | `Release`     | `{ release_name, release_id, release_version, project_id, project_name, status: { from, to } }`                                                                               |
+| Mark release as released    | `POST /api/v1/releases/:releaseId/release`        |         A          | `release.released`         | `Release`     | `{ release_name, release_id, release_version, project_id, project_name, status: { from, to } }`                                                                               |
+| Cancel release              | `POST /api/v1/releases/:releaseId/cancel`         |         A          | `release.cancelled`        | `Release`     | `{ release_name, release_id, release_version, project_id, project_name, status: { from, to } }`                                                                               |
+| Создать release task        | `POST /api/v1/releases/:releaseId/release-tasks`  |         A          | `release_task.created`     | `ReleaseTask` | `{ release_name, release_id, release_version, project_id, project_name, release_task_name, release_task_id, release_task_key, release_task_url }`                             |
+| Изменить release task       | `PATCH /api/v1/release-tasks/:releaseTaskId`      |         A          | `release_task.updated`     | `ReleaseTask` | `{ release_name, release_id, release_version, project_id, project_name, release_task_name, release_task_id, release_task_key, release_task_url, changes: { before, after } }` |
+| Удалить release task        | `DELETE /api/v1/release-tasks/:releaseTaskId`     |         A          | `release_task.deleted`     | `ReleaseTask` | `{ release_name, release_id, release_version, project_id, project_name, release_task_name, release_task_id, release_task_key, release_task_url }`                             |
 
 ---
 
 ### ChecklistModule
 
-| Business action | Endpoint | Creates AuditEvent | action | entity_type | metadata |
-| --------------- | -------- | :----------------: | ------ | ----------- | -------- |
-| Создать checklist item | `POST /api/v1/releases/:releaseId/checklist-items` | A | `checklist_item.created` | `ChecklistItem` | `{ release_name, release_id, release_version, project_id, project_name, checklist_item_id, checklist_item_title }` |
-| Изменить checklist item | `PATCH /api/v1/checklist-items/:checklistItemId` | A | `checklist_item.updated` | `ChecklistItem` | `{ release_name, release_id, release_version, project_id, project_name, checklist_item_id, checklist_item_title, changes: { before, after } }` |
-| Изменить статус checklist item | `PATCH /api/v1/checklist-items/:checklistItemId/status` | A | `checklist_item.status_updated` | `ChecklistItem` | `{ release_name, release_id, release_version, project_id, project_name, checklist_item_id, checklist_item_title, status: { from, to } }` |
-| Удалить checklist item | `DELETE /api/v1/checklist-items/:checklistItemId` | A | `checklist_item.deleted` | `ChecklistItem` | `{ release_name, release_id, release_version, project_id, project_name, checklist_item_id, checklist_item_title }` |
+| Business action                | Endpoint                                                | Creates AuditEvent | action                          | entity_type     | metadata                                                                                                                                       |
+| ------------------------------ | ------------------------------------------------------- | :----------------: | ------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Создать checklist item         | `POST /api/v1/releases/:releaseId/checklist-items`      |         A          | `checklist_item.created`        | `ChecklistItem` | `{ release_name, release_id, release_version, project_id, project_name, checklist_item_id, checklist_item_title }`                             |
+| Изменить checklist item        | `PATCH /api/v1/checklist-items/:checklistItemId`        |         A          | `checklist_item.updated`        | `ChecklistItem` | `{ release_name, release_id, release_version, project_id, project_name, checklist_item_id, checklist_item_title, changes: { before, after } }` |
+| Изменить статус checklist item | `PATCH /api/v1/checklist-items/:checklistItemId/status` |         A          | `checklist_item.status_updated` | `ChecklistItem` | `{ release_name, release_id, release_version, project_id, project_name, checklist_item_id, checklist_item_title, status: { from, to } }`       |
+| Удалить checklist item         | `DELETE /api/v1/checklist-items/:checklistItemId`       |         A          | `checklist_item.deleted`        | `ChecklistItem` | `{ release_name, release_id, release_version, project_id, project_name, checklist_item_id, checklist_item_title }`                             |
 
 ---
 
 ### ApprovalsModule
 
-| Business action | Endpoint | Creates AuditEvent | action | entity_type | metadata |
-| --------------- | -------- | :----------------: | ------ | ----------- | -------- |
-| Назначить reviewer | `POST /api/v1/releases/:releaseId/approvals` | A | `approval.created` | `Approval` | `{ approval_id, release_id, release_name, release_version, project_id, project_name, reviewer_user_id, reviewer_name, reviewer_email }` |
-| Approve approval | `PATCH /api/v1/approvals/:approvalId/approve` | A | `approval.approved` | `Approval` | `{ approval_id, release_id, release_name, release_version, project_id, project_name, reviewer_user_id, reviewer_name, reviewer_email, status: { from, to } }` |
-| Reject approval | `PATCH /api/v1/approvals/:approvalId/reject` | A | `approval.rejected` | `Approval` | `{ approval_id, release_id, release_name, release_version, project_id, project_name, reviewer_user_id, reviewer_name, reviewer_email, status: { from, to } }` |
-| Revoke approval | `PATCH /api/v1/approvals/:approvalId/revoke` | A | `approval.revoked` | `Approval` | `{ approval_id, release_id, release_name, release_version, project_id, project_name, reviewer_user_id, reviewer_name, reviewer_email, status: { from, to } }` |
-| Удалить approval | `DELETE /api/v1/approvals/:approvalId` | A | `approval.deleted` | `Approval` | `{ approval_id, release_id, release_name, release_version, project_id, project_name, reviewer_user_id, reviewer_name, reviewer_email }` |
+| Business action    | Endpoint                                      | Creates AuditEvent | action              | entity_type | metadata                                                                                                                                                      |
+| ------------------ | --------------------------------------------- | :----------------: | ------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Назначить reviewer | `POST /api/v1/releases/:releaseId/approvals`  |         A          | `approval.created`  | `Approval`  | `{ approval_id, release_id, release_name, release_version, project_id, project_name, reviewer_user_id, reviewer_name, reviewer_email }`                       |
+| Approve approval   | `PATCH /api/v1/approvals/:approvalId/approve` |         A          | `approval.approved` | `Approval`  | `{ approval_id, release_id, release_name, release_version, project_id, project_name, reviewer_user_id, reviewer_name, reviewer_email, status: { from, to } }` |
+| Reject approval    | `PATCH /api/v1/approvals/:approvalId/reject`  |         A          | `approval.rejected` | `Approval`  | `{ approval_id, release_id, release_name, release_version, project_id, project_name, reviewer_user_id, reviewer_name, reviewer_email, status: { from, to } }` |
+| Revoke approval    | `PATCH /api/v1/approvals/:approvalId/revoke`  |         A          | `approval.revoked`  | `Approval`  | `{ approval_id, release_id, release_name, release_version, project_id, project_name, reviewer_user_id, reviewer_name, reviewer_email, status: { from, to } }` |
+| Удалить approval   | `DELETE /api/v1/approvals/:approvalId`        |         A          | `approval.deleted`  | `Approval`  | `{ approval_id, release_id, release_name, release_version, project_id, project_name, reviewer_user_id, reviewer_name, reviewer_email }`                       |
 
 ---
 
 ### CommentsModule
 
-| Business action | Endpoint | Creates AuditEvent | action | entity_type | metadata |
-| --------------- | -------- | :----------------: | ------ | ----------- | -------- |
-| Создать comment | `POST /api/v1/releases/:releaseId/comments` | A | `comment.created` | `Comment` | `{ comment_id, release_id, release_name, release_version, project_id, project_name }` |
-| Изменить comment | `PATCH /api/v1/comments/:commentId` | A | `comment.updated` | `Comment` | `{ comment_id, release_id, release_name, release_version, project_id, project_name, changes: { before, after } }` |
-| Удалить comment | `DELETE /api/v1/comments/:commentId` | A | `comment.deleted` | `Comment` | `{ comment_id, release_id, release_name, release_version, project_id, project_name }` |
+| Business action  | Endpoint                                    | Creates AuditEvent | action            | entity_type | metadata                                                                                                          |
+| ---------------- | ------------------------------------------- | :----------------: | ----------------- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| Создать comment  | `POST /api/v1/releases/:releaseId/comments` |         A          | `comment.created` | `Comment`   | `{ comment_id, release_id, release_name, release_version, project_id, project_name }`                             |
+| Изменить comment | `PATCH /api/v1/comments/:commentId`         |         A          | `comment.updated` | `Comment`   | `{ comment_id, release_id, release_name, release_version, project_id, project_name, changes: { before, after } }` |
+| Удалить comment  | `DELETE /api/v1/comments/:commentId`        |         A          | `comment.deleted` | `Comment`   | `{ comment_id, release_id, release_name, release_version, project_id, project_name }`                             |
 
 ---
 
 ## Actions That Do Not Create AuditEvent
 
-| Module | Business action | Endpoint | Reason |
-| ------ | --------------- | -------- | ------ |
-| AuthModule | Зарегистрироваться | `POST /api/v1/auth/registration` | Пользователь ещё не находится в контексте организации/проекта; событие не относится к доменному audit trail. |
-| AuthModule | Войти в систему | `POST /api/v1/auth/login` | Login не меняет доменную модель; это security-событие, а не бизнес-событие. |
-| UsersModule | Получить свой профиль | `GET /api/v1/users/me` | GET-запрос не меняет состояние системы. |
-| UsersModule | Изменить свой профиль | `PATCH /api/v1/users/me` | Изменение профиля не влияет на organization/project/release; для MVP достаточно `updated_at` на User. |
-| OrganizationsModule | Получить список своих организаций | `GET /api/v1/organizations` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| OrganizationsModule | Получить организацию | `GET /api/v1/organizations/:organizationId` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| MembershipsModule | Получить список участников | `GET /api/v1/organizations/:organizationId/memberships` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| MembershipsModule | Получить участника | `GET /api/v1/memberships/:membershipId` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| ProjectsModule | Получить список проектов | `GET /api/v1/organizations/:organizationId/projects` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| ProjectsModule | Получить проект | `GET /api/v1/projects/:projectId` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| EnvironmentsModule | Получить список environments | `GET /api/v1/projects/:projectId/environments` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| EnvironmentsModule | Получить environment | `GET /api/v1/environments/:environmentId` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| ReleasesModule | Получить список releases | `GET /api/v1/projects/:projectId/releases` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| ReleasesModule | Получить release | `GET /api/v1/releases/:releaseId` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| ReleasesModule | Получить список release tasks | `GET /api/v1/releases/:releaseId/release-tasks` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| ChecklistModule | Получить список checklist items | `GET /api/v1/releases/:releaseId/checklist-items` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| ApprovalsModule | Получить список approvals | `GET /api/v1/releases/:releaseId/approvals` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| CommentsModule | Получить список comments | `GET /api/v1/releases/:releaseId/comments` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| AuditModule | Получить audit events организации | `GET /api/v1/organizations/:organizationId/audit-events` | Чтение audit log не должно создавать новый AuditEvent. |
-| AuditModule | Получить audit events проекта | `GET /api/v1/projects/:projectId/audit-events` | Чтение audit log не должно создавать новый AuditEvent. |
-| AuditModule | Получить audit events релиза | `GET /api/v1/releases/:releaseId/audit-events` | Чтение audit log не должно создавать новый AuditEvent. |
-| NotificationsModule | Получить свои notifications | `GET /api/v1/notifications` | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail. |
-| NotificationsModule | Отметить notification прочитанным | `PATCH /api/v1/notifications/:notificationId/read` | Изменяет пользовательское UI-состояние, а не доменную модель organization/project/release. |
-| NotificationsModule | Отметить все notifications прочитанными | `PATCH /api/v1/notifications/read-all` | Изменяет пользовательское UI-состояние, а не доменную модель organization/project/release. |
+| Module              | Business action                         | Endpoint                                                 | Reason                                                                                                       |
+| ------------------- | --------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| AuthModule          | Зарегистрироваться                      | `POST /api/v1/auth/registration`                         | Пользователь ещё не находится в контексте организации/проекта; событие не относится к доменному audit trail. |
+| AuthModule          | Войти в систему                         | `POST /api/v1/auth/login`                                | Login не меняет доменную модель; это security-событие, а не бизнес-событие.                                  |
+| UsersModule         | Получить свой профиль                   | `GET /api/v1/users/me`                                   | GET-запрос не меняет состояние системы.                                                                      |
+| UsersModule         | Изменить свой профиль                   | `PATCH /api/v1/users/me`                                 | Изменение профиля не влияет на organization/project/release; для MVP достаточно `updated_at` на User.        |
+| OrganizationsModule | Получить список своих организаций       | `GET /api/v1/organizations`                              | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| OrganizationsModule | Получить организацию                    | `GET /api/v1/organizations/:organizationId`              | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| MembershipsModule   | Получить список участников              | `GET /api/v1/organizations/:organizationId/memberships`  | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| MembershipsModule   | Получить участника                      | `GET /api/v1/memberships/:membershipId`                  | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| ProjectsModule      | Получить список проектов                | `GET /api/v1/organizations/:organizationId/projects`     | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| ProjectsModule      | Получить проект                         | `GET /api/v1/projects/:projectId`                        | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| EnvironmentsModule  | Получить список environments            | `GET /api/v1/projects/:projectId/environments`           | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| EnvironmentsModule  | Получить environment                    | `GET /api/v1/environments/:environmentId`                | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| ReleasesModule      | Получить список releases                | `GET /api/v1/projects/:projectId/releases`               | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| ReleasesModule      | Получить release                        | `GET /api/v1/releases/:releaseId`                        | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| ReleasesModule      | Получить список release tasks           | `GET /api/v1/releases/:releaseId/release-tasks`          | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| ChecklistModule     | Получить список checklist items         | `GET /api/v1/releases/:releaseId/checklist-items`        | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| ApprovalsModule     | Получить список approvals               | `GET /api/v1/releases/:releaseId/approvals`              | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| CommentsModule      | Получить список comments                | `GET /api/v1/releases/:releaseId/comments`               | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| AuditModule         | Получить audit events организации       | `GET /api/v1/organizations/:organizationId/audit-events` | Чтение audit log не должно создавать новый AuditEvent.                                                       |
+| AuditModule         | Получить audit events проекта           | `GET /api/v1/projects/:projectId/audit-events`           | Чтение audit log не должно создавать новый AuditEvent.                                                       |
+| AuditModule         | Получить audit events релиза            | `GET /api/v1/releases/:releaseId/audit-events`           | Чтение audit log не должно создавать новый AuditEvent.                                                       |
+| NotificationsModule | Получить свои notifications             | `GET /api/v1/notifications`                              | Read-only endpoint; не меняет доменную модель и не входит в MVP audit trail.                                 |
+| NotificationsModule | Отметить notification прочитанным       | `PATCH /api/v1/notifications/:notificationId/read`       | Изменяет пользовательское UI-состояние, а не доменную модель organization/project/release.                   |
+| NotificationsModule | Отметить все notifications прочитанными | `PATCH /api/v1/notifications/read-all`                   | Изменяет пользовательское UI-состояние, а не доменную модель organization/project/release.                   |

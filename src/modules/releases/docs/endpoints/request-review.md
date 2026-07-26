@@ -19,12 +19,12 @@ Authorization: Bearer <access-token>
 
 ## Выполнение
 
-| Шаг | Слой       | Действие                                                                      |
-| --- | ---------- | ----------------------------------------------------------------------------- |
-| 1   | Controller | Передает `releaseId` и `userId` в `ReleasesService.requestReview`             |
-| 2   | Service    | Проверяет membership, роль пользователя, статус релиза и готовность approvals |
-| 3   | Policy     | Разрешает действие только ролям `OWNER` и `MANAGER`                           |
-| 4   | Repository | Проверяет доступность release context и условно меняет `DRAFT` на `IN_REVIEW` |
+| Шаг | Слой       | Действие                                                                        |
+| --- | ---------- | ------------------------------------------------------------------------------- |
+| 1   | Controller | Передает `releaseId` и `userId` в `ReleasesService.requestReview`               |
+| 2   | Service    | Проверяет membership, роль пользователя, статус релиза и готовность approvals   |
+| 3   | Policy     | Разрешает действие только ролям `OWNER` и `MANAGER`                             |
+| 4   | Repository | В транзакции меняет `DRAFT` на `IN_REVIEW` и создаёт `release.review_requested` |
 
 ## Бизнес-правила
 
@@ -37,10 +37,13 @@ Authorization: Bearer <access-token>
 - хотя бы один reviewer должен отличаться от создателя release;
 - все approvals должны находиться в статусе `PENDING`;
 - условный update защищает переход от конкурентного изменения статуса;
+- изменение release и создание AuditEvent выполняются атомарно;
+- если создание AuditEvent завершается ошибкой, изменение статуса откатывается;
+- повторный request-review не создаёт дополнительный AuditEvent.
 
 ## Prisma
 
-Операции: `Release.findFirst` и `Release.update`.
+Операции: `Release.findFirst`, `Release.update` и `AuditEvent.create`.
 
 Контекст готовности:
 
@@ -67,6 +70,11 @@ release.findFirst({
     createdByUserId: true,
     projectId: true,
     environmentId: true,
+    project: {
+      select: {
+        organizationId: true,
+      },
+    },
     approvals: {
       select: {
         reviewerUserId: true,
@@ -77,25 +85,45 @@ release.findFirst({
 });
 ```
 
-Условный переход:
+Условный переход и создание AuditEvent выполняются через один Prisma transaction client:
 
 ```ts
-release.update({
-  where: {
-    id: releaseId,
-    status: ReleaseStatus.DRAFT,
-    deletedAt: null,
-    project: {
+prisma.$transaction(async (tx) => {
+  const release = await tx.release.update({
+    where: {
+      id: releaseId,
+      status: ReleaseStatus.DRAFT,
       deletedAt: null,
-      organization: { deletedAt: null },
+      project: {
+        deletedAt: null,
+        organization: { deletedAt: null },
+      },
     },
-  },
-  data: { status: ReleaseStatus.IN_REVIEW },
-  select: updateReleaseSelect,
+    data: { status: ReleaseStatus.IN_REVIEW },
+    select: updateReleaseSelect,
+  });
+
+  await auditRepository.createAuditEvent(tx, {
+    organizationId,
+    projectId,
+    releaseId,
+    actorUserId,
+    action: 'release.review_requested',
+    entityType: 'release',
+    entityId: releaseId,
+    metadata: {
+      fromStatus: ReleaseStatus.DRAFT,
+      toStatus: ReleaseStatus.IN_REVIEW,
+    },
+  });
+
+  return release;
 });
 ```
 
 Если условия update перестали выполняться из-за конкурентного изменения, Prisma возвращает `P2025`, который преобразуется в `409 Conflict`.
+
+Если создание AuditEvent завершается ошибкой, Prisma откатывает всю транзакцию.
 
 ## Ответ
 
