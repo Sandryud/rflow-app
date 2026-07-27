@@ -19,12 +19,12 @@ Authorization: Bearer <access-token>
 
 ## Выполнение
 
-| Шаг | Слой       | Действие                                                             |
-| --- | ---------- | -------------------------------------------------------------------- |
-| 1   | Controller | Передает `releaseId` и `userId` в `ReleasesService.requestRelease`   |
-| 2   | Service    | Проверяет membership, роль, статус release и доступность environment |
-| 3   | Policy     | Разрешает действие только ролям `OWNER` и `MANAGER`                  |
-| 4   | Repository | Условно меняет статус release с `APPROVED` на `RELEASED`             |
+| Шаг | Слой       | Действие                                                                  |
+| --- | ---------- | ------------------------------------------------------------------------- |
+| 1   | Controller | Передает `releaseId` и `userId` в `ReleasesService.requestRelease`        |
+| 2   | Service    | Проверяет membership, роль, статус release и доступность environment      |
+| 3   | Policy     | Разрешает действие только ролям `OWNER` и `MANAGER`                       |
+| 4   | Repository | В транзакции меняет `APPROVED` на `RELEASED` и создаёт `release.released` |
 
 ## Бизнес-правила
 
@@ -34,10 +34,12 @@ Authorization: Bearer <access-token>
 - release должен находиться в статусе `APPROVED`;
 - environment должен быть активным, неудалённым и принадлежать project релиза;
 - условный update защищает переход от конкурентного изменения статуса или environment.
+- переход и AuditEvent фиксируются атомарно;
+- metadata содержит `fromStatus: APPROVED` и `toStatus: RELEASED`.
 
 ## Prisma
 
-Операции: `Release.findFirst`, `Environment.findFirst` и `Release.update`.
+Операции: `Release.findFirst`, `Environment.findFirst`, `Release.update` и `AuditEvent.create`.
 
 ```ts
 release.update({
@@ -63,6 +65,8 @@ release.update({
 ```
 
 Если условия update перестали выполняться из-за конкурентного изменения, Prisma возвращает `P2025`, который преобразуется в `409 Conflict`.
+
+Условный update выполняется через общую транзакционную обёртку `executeTransitionWithAudit`. После успешного перехода `AuditRepository` создаёт `release.released` через тот же transaction client. Ошибка AuditEvent откатывает переход.
 
 ## Ответ
 

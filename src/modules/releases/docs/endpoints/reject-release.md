@@ -24,7 +24,7 @@ Authorization: Bearer <access-token>
 | 1   | Controller | Передает `releaseId` и `userId` в `ReleasesService.requestReject`          |
 | 2   | Service    | Проверяет membership, роль, статус release и наличие отклоненного approval |
 | 3   | Policy     | Разрешает действие только ролям `OWNER` и `MANAGER`                        |
-| 4   | Repository | Условно меняет статус release с `IN_REVIEW` на `REJECTED`                  |
+| 4   | Repository | В транзакции меняет `IN_REVIEW` на `REJECTED` и создаёт `release.rejected` |
 
 ## Бизнес-правила
 
@@ -34,10 +34,12 @@ Authorization: Bearer <access-token>
 - release должен находиться в статусе `IN_REVIEW`;
 - должен существовать хотя бы один approval со статусом `REJECTED`;
 - условный update защищает переход от конкурентного изменения approvals или статуса release.
+- переход и AuditEvent фиксируются атомарно;
+- metadata содержит `fromStatus: IN_REVIEW` и `toStatus: REJECTED`.
 
 ## Prisma
 
-Операции: `Release.findFirst` и `Release.update`.
+Операции: `Release.findFirst`, `Release.update` и `AuditEvent.create`.
 
 ```ts
 release.update({
@@ -59,6 +61,8 @@ release.update({
 ```
 
 Если условия update перестали выполняться из-за конкурентного изменения, Prisma возвращает `P2025`, который преобразуется в `409 Conflict`.
+
+Условный update выполняется через общую транзакционную обёртку `executeTransitionWithAudit`. После успешного перехода `AuditRepository` создаёт `release.rejected` через тот же transaction client. Ошибка AuditEvent откатывает переход.
 
 ## Ответ
 

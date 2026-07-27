@@ -19,12 +19,12 @@ Authorization: Bearer <access-token>
 
 ## Выполнение
 
-| Шаг | Слой       | Действие                                                                      |
-| --- | ---------- | ----------------------------------------------------------------------------- |
-| 1   | Controller | Передает `releaseId` и `userId` в `ReleasesService.requestReopen`             |
-| 2   | Service    | Проверяет membership, роль, статус release и доступность environment          |
-| 3   | Policy     | Разрешает действие только ролям `OWNER` и `MANAGER`                           |
-| 4   | Repository | В транзакции меняет `REJECTED` на `DRAFT` и сбрасывает решения всех approvals |
+| Шаг | Слой       | Действие                                                                                     |
+| --- | ---------- | -------------------------------------------------------------------------------------------- |
+| 1   | Controller | Передает `releaseId` и `userId` в `ReleasesService.requestReopen`                            |
+| 2   | Service    | Проверяет membership, роль, статус release и доступность environment                         |
+| 3   | Policy     | Разрешает действие только ролям `OWNER` и `MANAGER`                                          |
+| 4   | Repository | В транзакции меняет `REJECTED` на `DRAFT`, сбрасывает approvals и создаёт `release.reopened` |
 
 ## Бизнес-правила
 
@@ -36,11 +36,13 @@ Authorization: Bearer <access-token>
 - все approvals переводятся в `PENDING`;
 - у всех approvals очищаются `comment` и `decidedAt`;
 - изменение release и сброс approvals выполняются атомарно;
+- AuditEvent создаётся после изменения release и сброса approvals;
+- metadata содержит `fromStatus: REJECTED`, `toStatus: DRAFT` и `approvalsReset: true`;
 - условный update защищает переход от конкурентного reopen.
 
 ## Prisma
 
-Операции: `Release.findFirst`, `Environment.findFirst`, `Release.update` и `Approval.updateMany`.
+Операции: `Release.findFirst`, `Environment.findFirst`, `Release.update`, `Approval.updateMany` и `AuditEvent.create`.
 
 ```ts
 prisma.$transaction(async (tx) => {
@@ -74,11 +76,13 @@ prisma.$transaction(async (tx) => {
     },
   });
 
+  await auditRepository.createAuditEvent(tx, auditEvent);
+
   return release;
 });
 ```
 
-Если conditional update перестал соответствовать состоянию release, Prisma возвращает `P2025`, который преобразуется в `409 Conflict`. Ошибка любой операции откатывает всю транзакцию.
+Операции выполняются через общую обёртку `executeTransitionWithAudit`. Если conditional update перестал соответствовать состоянию release, Prisma возвращает `P2025`, который преобразуется в `409 Conflict`. Ошибка update, reset или создания AuditEvent откатывает всю транзакцию.
 
 ## Ответ
 

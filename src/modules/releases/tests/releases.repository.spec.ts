@@ -77,6 +77,16 @@ const reviewedRelease = {
   updatedAt: new Date('2026-07-26T10:00:00.000Z'),
 };
 
+const approvedRelease = {
+  ...reviewedRelease,
+  status: ReleaseStatus.APPROVED,
+};
+
+const rejectedRelease = {
+  ...reviewedRelease,
+  status: ReleaseStatus.REJECTED,
+};
+
 const reopenedRelease = {
   id: releaseId,
   version: '1.0.0',
@@ -86,6 +96,42 @@ const reopenedRelease = {
   environmentId: 'environment-id',
   updatedAt: new Date('2026-07-22T10:00:00.000Z'),
 };
+
+const releasedRelease = {
+  ...reviewedRelease,
+  status: ReleaseStatus.RELEASED,
+};
+
+const approveAuditEvent = {
+  ...requestReviewAuditEvent,
+  action: 'release.approved',
+  metadata: {
+    fromStatus: ReleaseStatus.IN_REVIEW,
+    toStatus: ReleaseStatus.APPROVED,
+  },
+};
+
+const rejectAuditEvent = {
+  ...requestReviewAuditEvent,
+  action: 'release.rejected',
+  metadata: {
+    fromStatus: ReleaseStatus.IN_REVIEW,
+    toStatus: ReleaseStatus.REJECTED,
+  },
+};
+
+const releaseAuditEvent = {
+  ...requestReviewAuditEvent,
+  action: 'release.released',
+  metadata: {
+    fromStatus: ReleaseStatus.APPROVED,
+    toStatus: ReleaseStatus.RELEASED,
+  },
+};
+
+const approveParams = { releaseId, auditEvent: approveAuditEvent };
+const rejectParams = { releaseId, auditEvent: rejectAuditEvent };
+const releaseParams = { releaseId, auditEvent: releaseAuditEvent };
 
 const createTransactionMock = (): TransactionMock => ({
   release: { update: jest.fn() },
@@ -127,6 +173,37 @@ const arrangeSuccessfulRequestReview = (
     id: 'audit-event-id',
   });
 };
+
+const auditedTransitionCases = [
+  {
+    name: 'approve',
+    response: approvedRelease,
+    auditEvent: approveAuditEvent,
+    execute: (repository: ReleasesRepository) =>
+      repository.approveRelease(approveParams),
+  },
+  {
+    name: 'reject',
+    response: rejectedRelease,
+    auditEvent: rejectAuditEvent,
+    execute: (repository: ReleasesRepository) =>
+      repository.rejectRelease(rejectParams),
+  },
+  {
+    name: 'reopen',
+    response: reopenedRelease,
+    auditEvent: reopenAuditEvent,
+    execute: (repository: ReleasesRepository) =>
+      repository.reopenRelease(reopenParams),
+  },
+  {
+    name: 'release',
+    response: releasedRelease,
+    auditEvent: releaseAuditEvent,
+    execute: (repository: ReleasesRepository) =>
+      repository.requestRelease(releaseParams),
+  },
+];
 
 describe('ReleasesRepository', () => {
   beforeEach(() => {
@@ -222,6 +299,46 @@ describe('ReleasesRepository', () => {
     });
   });
 
+  describe('audited lifecycle transitions', () => {
+    it.each(auditedTransitionCases)(
+      '$name creates exactly one audit event with the transaction client',
+      async ({ auditEvent, execute, response }) => {
+        const { auditRepository, repository, transaction } = createRepository();
+        transaction.release.update.mockResolvedValue(response);
+
+        await execute(repository);
+
+        expect(auditRepository.createAuditEvent.mock.calls).toEqual([
+          [transaction, auditEvent],
+        ]);
+      },
+    );
+
+    it.each(auditedTransitionCases)(
+      '$name does not create an audit event when the transition fails',
+      async ({ execute }) => {
+        const { auditRepository, repository, transaction } = createRepository();
+        const error = new Error('Release transition failed');
+        transaction.release.update.mockRejectedValue(error);
+
+        await expect(execute(repository)).rejects.toBe(error);
+        expect(auditRepository.createAuditEvent).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(auditedTransitionCases)(
+      '$name propagates an audit event creation failure',
+      async ({ execute, response }) => {
+        const { auditRepository, repository, transaction } = createRepository();
+        const error = new Error('Audit event creation failed');
+        transaction.release.update.mockResolvedValue(response);
+        auditRepository.createAuditEvent.mockRejectedValue(error);
+
+        await expect(execute(repository)).rejects.toBe(error);
+      },
+    );
+  });
+
   describe('reopenRelease', () => {
     it('returns the reopened release from the transaction', async () => {
       const { repository, transaction } = createRepository();
@@ -300,6 +417,19 @@ describe('ReleasesRepository', () => {
       );
     });
 
+    it('creates the audit event after approval decisions are reset', async () => {
+      const { auditRepository, repository, transaction } = createRepository();
+      arrangeSuccessfulReopen(transaction);
+
+      await repository.reopenRelease(reopenParams);
+
+      expect(
+        transaction.approval.updateMany.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        auditRepository.createAuditEvent.mock.invocationCallOrder[0],
+      );
+    });
+
     it('does not reset approvals when the release transition fails', async () => {
       const { repository, transaction } = createRepository();
       transaction.release.update.mockRejectedValue(
@@ -313,7 +443,7 @@ describe('ReleasesRepository', () => {
     });
 
     it('propagates an approval reset failure from the transaction', async () => {
-      const { repository, transaction } = createRepository();
+      const { auditRepository, repository, transaction } = createRepository();
       transaction.release.update.mockResolvedValue(reopenedRelease);
       transaction.approval.updateMany.mockRejectedValue(
         new Error('Approval reset failed'),
@@ -322,6 +452,7 @@ describe('ReleasesRepository', () => {
       await expect(repository.reopenRelease(reopenParams)).rejects.toThrow(
         'Approval reset failed',
       );
+      expect(auditRepository.createAuditEvent).not.toHaveBeenCalled();
     });
 
     it('does not mutate checklist items, comments, or release tasks', async () => {

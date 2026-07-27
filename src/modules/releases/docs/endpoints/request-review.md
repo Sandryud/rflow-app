@@ -22,7 +22,7 @@ Authorization: Bearer <access-token>
 | Шаг | Слой       | Действие                                                                        |
 | --- | ---------- | ------------------------------------------------------------------------------- |
 | 1   | Controller | Передает `releaseId` и `userId` в `ReleasesService.requestReview`               |
-| 2   | Service    | Проверяет membership, роль пользователя, статус релиза и готовность approvals   |
+| 2   | Service    | Проверяет readiness и формирует payload события `release.review_requested`      |
 | 3   | Policy     | Разрешает действие только ролям `OWNER` и `MANAGER`                             |
 | 4   | Repository | В транзакции меняет `DRAFT` на `IN_REVIEW` и создаёт `release.review_requested` |
 
@@ -103,19 +103,7 @@ prisma.$transaction(async (tx) => {
     select: updateReleaseSelect,
   });
 
-  await auditRepository.createAuditEvent(tx, {
-    organizationId,
-    projectId,
-    releaseId,
-    actorUserId,
-    action: 'release.review_requested',
-    entityType: 'release',
-    entityId: releaseId,
-    metadata: {
-      fromStatus: ReleaseStatus.DRAFT,
-      toStatus: ReleaseStatus.IN_REVIEW,
-    },
-  });
+  await auditRepository.createAuditEvent(tx, auditEvent);
 
   return release;
 });

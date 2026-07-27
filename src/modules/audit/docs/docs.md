@@ -31,20 +31,23 @@ Audit log позволяет определить:
 - проверка ролей для изменения release;
 - изменение или удаление существующих AuditEvent;
 - создание AuditEvent напрямую через HTTP API;
-- автоматическое подключение аудита ко всем существующим use cases.
+- автоматическое подключение аудита к use cases за пределами release lifecycle.
 
-На текущем этапе запись события подключена только к переходу release `DRAFT → IN_REVIEW`.
+На текущем этапе запись события подключена ко всем реализованным переходам release lifecycle.
 
 ## Контекст использования
 
-`ReleasesRepository` открывает Prisma-транзакцию для `request-review`, условно изменяет статус release и передаёт тот же transaction client в `AuditRepository`.
+`ReleasesService` формирует event payload конкретного перехода. `ReleasesRepository` выполняет mutations состояния и передаёт тот же transaction client в `AuditRepository`.
 
-В рамках одной транзакции создаётся событие:
+Подключённые события:
 
-- `action = release.review_requested`;
-- `entityType = release`;
-- `metadata.fromStatus = DRAFT`;
-- `metadata.toStatus = IN_REVIEW`.
+| Action                     | Переход                | Дополнительная metadata |
+| -------------------------- | ---------------------- | ----------------------- |
+| `release.review_requested` | `DRAFT → IN_REVIEW`    | Нет                     |
+| `release.approved`         | `IN_REVIEW → APPROVED` | Нет                     |
+| `release.rejected`         | `IN_REVIEW → REJECTED` | Нет                     |
+| `release.reopened`         | `REJECTED → DRAFT`     | `approvalsReset: true`  |
+| `release.released`         | `APPROVED → RELEASED`  | Нет                     |
 
 Если создание события завершается ошибкой, транзакция не фиксирует изменение release.
 
