@@ -27,11 +27,13 @@ npx jest src/modules/users/tests/users.service.spec.ts --runInBand
   [`docs/templates/unit-testing-guidelines.md`](docs/templates/unit-testing-guidelines.md)
 - Architecture and implementation plan for integration tests on real PostgreSQL:
   [`docs/integration-testing.md`](docs/integration-testing.md)
+- Developer guide for the implemented integration test contour:
+  [`test/integration/docs/README.md`](test/integration/docs/README.md)
 
-The existing files in `test/integration` currently assemble Nest modules with a
-mocked `PrismaService`. The target PostgreSQL contour and migration plan are
-documented separately so that mock-based component tests and real database
-integration tests have explicit boundaries.
+The integration runner starts an ephemeral PostgreSQL 16 container, applies the
+committed Prisma migrations and creates an isolated database for every Jest
+worker. The current database-contour smoke test verifies this infrastructure;
+feature integration tests are added in the next implementation stages.
 
 ## Project Structure
 

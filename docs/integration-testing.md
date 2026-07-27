@@ -1,15 +1,17 @@
 # Integration Testing With Real PostgreSQL
 
-Статус: proposed  
-Область: backend на NestJS, Prisma и PostgreSQL  
-Цель: определить реализацию воспроизводимого и масштабируемого integration-контура
+Статус: implementation in progress; PostgreSQL infrastructure implemented
+
+Область: backend на NestJS, Prisma и PostgreSQL
+
+Цель: реализовать воспроизводимый и масштабируемый integration-контур
 
 ## 1. Резюме решения
 
 Integration-тесты ReleaseFlow должны запускать реальные Nest providers, Prisma Client,
 SQL-запросы, constraints, индексы и транзакции на настоящем PostgreSQL.
 
-Целевой контур:
+Реализованный infrastructure contour:
 
 ```text
 Jest global setup
@@ -48,10 +50,13 @@ Jest global teardown
 - тесты одного worker не используют `test.concurrent`;
 - test database никогда не переиспользует development или production volume.
 
-Это целевая архитектура, а не описание уже реализованного контура. Порядок внедрения
-приведён в разделе 13.
+Infrastructure lifecycle, Jest configuration и database-contour smoke test уже
+реализованы. Feature factories, repository/service integration tests и HTTP/E2E
+контур остаются следующими этапами. Полный порядок внедрения приведён в разделе 13.
 
 ## 2. Оценка текущего состояния
+
+Ниже сохранена исходная оценка, на основании которой проектировался контур.
 
 ### Что уже подготовлено хорошо
 
@@ -79,14 +84,28 @@ Jest global teardown
 | Bootstrap                                | Prefix, versioning, pipe и filter настроены только в `main.ts`    | HTTP-тест легко запускает приложение с другим поведением |
 | `docker-compose.yml`                     | Постоянный volume и фиксированный host port                       | Неподходящая изоляция для автоматических тестов          |
 
-Текущие `auth.integration-spec.ts` и `users.integration-spec.ts` полезны как
-component/module tests: они проверяют Nest DI и взаимодействие controller-service с
-подменённой БД. При внедрении нового контура их нужно либо:
+Существовавшие `auth.integration-spec.ts` и `users.integration-spec.ts` фактически
+были component/module tests: они проверяли Nest DI и взаимодействие
+controller-service с подменённой БД. Перед реализацией контура эти файлы были
+удалены. Новые mock-based module tests следует размещать в `test/component` с
+суффиксом `*.component-spec.ts`; суффикс `integration-spec` предназначен только для
+реального integration-контура.
 
-1. перенести в `test/component` и переименовать в `*.component-spec.ts`; либо
-2. преобразовать в настоящие integration-тесты, убрав override `PrismaService`.
+### Результат первого этапа
 
-Не следует сохранять за mock-based тестами суффикс `integration-spec`.
+- mock-based `auth.integration-spec.ts` и `users.integration-spec.ts` удалены до
+  начала реализации контура;
+- установлен `@testcontainers/postgresql`;
+- `test/jest-integration.json` заменён на
+  `test/jest-integration.config.ts`;
+- реализованы global setup/teardown, worker setup, Jest hooks, container state и
+  database manager;
+- добавлен safety check для имён test databases и state file;
+- committed Prisma migrations применяются к template database;
+- каждый Jest worker получает database-клон template;
+- domain tables очищаются перед каждым `it`;
+- добавлен `database-contour.integration-spec.ts`, проверяющий worker database и
+  migrated schema.
 
 ## 3. Таксономия тестов
 
@@ -180,6 +199,9 @@ test/
         release.factory.ts
         approval.factory.ts
         checklist-item.factory.ts
+
+    database/
+      database-contour.integration-spec.ts
 
     auth/
       auth.repository.integration-spec.ts
