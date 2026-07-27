@@ -28,11 +28,43 @@ const actorUserId = 'actor-user-id';
 const organizationId = 'organization-id';
 const projectId = 'project-id';
 
-const requestReviewParams = {
-  releaseId,
-  actorUserId,
+const requestReviewAuditEvent = {
   organizationId,
   projectId,
+  releaseId,
+  actorUserId,
+  action: 'release.review_requested',
+  entityType: 'release',
+  entityId: releaseId,
+  metadata: {
+    fromStatus: ReleaseStatus.DRAFT,
+    toStatus: ReleaseStatus.IN_REVIEW,
+  },
+};
+
+const requestReviewParams = {
+  releaseId,
+  auditEvent: requestReviewAuditEvent,
+};
+
+const reopenAuditEvent = {
+  organizationId,
+  projectId,
+  releaseId,
+  actorUserId,
+  action: 'release.reopened',
+  entityType: 'release',
+  entityId: releaseId,
+  metadata: {
+    fromStatus: ReleaseStatus.REJECTED,
+    toStatus: ReleaseStatus.DRAFT,
+    approvalsReset: true,
+  },
+};
+
+const reopenParams = {
+  releaseId,
+  auditEvent: reopenAuditEvent,
 };
 
 const reviewedRelease = {
@@ -150,19 +182,7 @@ describe('ReleasesRepository', () => {
 
       expect(auditRepository.createAuditEvent).toHaveBeenCalledWith(
         transaction,
-        {
-          organizationId,
-          projectId,
-          releaseId,
-          actorUserId,
-          action: 'release.review_requested',
-          entityType: 'release',
-          entityId: releaseId,
-          metadata: {
-            fromStatus: ReleaseStatus.DRAFT,
-            toStatus: ReleaseStatus.IN_REVIEW,
-          },
-        },
+        requestReviewAuditEvent,
       );
     });
 
@@ -207,7 +227,7 @@ describe('ReleasesRepository', () => {
       const { repository, transaction } = createRepository();
       arrangeSuccessfulReopen(transaction);
 
-      const result = await repository.reopenRelease(releaseId);
+      const result = await repository.reopenRelease(reopenParams);
 
       expect(result).toEqual(reopenedRelease);
     });
@@ -216,7 +236,7 @@ describe('ReleasesRepository', () => {
       const { prisma, repository, transaction } = createRepository();
       arrangeSuccessfulReopen(transaction);
 
-      await repository.reopenRelease(releaseId);
+      await repository.reopenRelease(reopenParams);
 
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     });
@@ -225,7 +245,7 @@ describe('ReleasesRepository', () => {
       const { repository, transaction } = createRepository();
       arrangeSuccessfulReopen(transaction);
 
-      await repository.reopenRelease(releaseId);
+      await repository.reopenRelease(reopenParams);
 
       expect(transaction.release.update).toHaveBeenCalledWith({
         where: {
@@ -255,7 +275,7 @@ describe('ReleasesRepository', () => {
       const { repository, transaction } = createRepository();
       arrangeSuccessfulReopen(transaction);
 
-      await repository.reopenRelease(releaseId);
+      await repository.reopenRelease(reopenParams);
 
       expect(transaction.approval.updateMany).toHaveBeenCalledWith({
         where: { releaseId },
@@ -271,7 +291,7 @@ describe('ReleasesRepository', () => {
       const { repository, transaction } = createRepository();
       arrangeSuccessfulReopen(transaction);
 
-      await repository.reopenRelease(releaseId);
+      await repository.reopenRelease(reopenParams);
 
       expect(
         transaction.release.update.mock.invocationCallOrder[0],
@@ -286,7 +306,7 @@ describe('ReleasesRepository', () => {
         new Error('Release update failed'),
       );
 
-      await expect(repository.reopenRelease(releaseId)).rejects.toThrow(
+      await expect(repository.reopenRelease(reopenParams)).rejects.toThrow(
         'Release update failed',
       );
       expect(transaction.approval.updateMany).not.toHaveBeenCalled();
@@ -299,7 +319,7 @@ describe('ReleasesRepository', () => {
         new Error('Approval reset failed'),
       );
 
-      await expect(repository.reopenRelease(releaseId)).rejects.toThrow(
+      await expect(repository.reopenRelease(reopenParams)).rejects.toThrow(
         'Approval reset failed',
       );
     });
@@ -308,7 +328,7 @@ describe('ReleasesRepository', () => {
       const { repository, transaction } = createRepository();
       arrangeSuccessfulReopen(transaction);
 
-      await repository.reopenRelease(releaseId);
+      await repository.reopenRelease(reopenParams);
 
       expect([
         transaction.checklistItem.updateMany.mock.calls.length,

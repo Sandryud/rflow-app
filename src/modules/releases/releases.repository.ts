@@ -8,17 +8,16 @@ import {
 
 import { PrismaService } from '@database/prisma.service';
 import { AuditRepository } from '@modules/audit/audit.repository';
+import type { CreateAuditEventData } from '@modules/audit/audit.types';
 import {
   releaseSelect,
   releaseTaskSelect,
   updateReleaseSelect,
 } from './releases.select';
 
-type RequestReviewTransactionParams = {
+type LifecycleTransactionParams = {
   releaseId: string;
-  actorUserId: string;
-  organizationId: string;
-  projectId: string;
+  auditEvent: CreateAuditEventData;
 };
 
 @Injectable()
@@ -27,6 +26,19 @@ export class ReleasesRepository {
     private readonly prisma: PrismaService,
     private readonly auditRepository: AuditRepository,
   ) {}
+
+  private executeTransitionWithAudit<T>(
+    auditEvent: CreateAuditEventData,
+    mutation: (tx: Prisma.TransactionClient) => Promise<T>,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const result = await mutation(tx);
+
+      await this.auditRepository.createAuditEvent(tx, auditEvent);
+
+      return result;
+    });
+  }
 
   findProjectMembership(userId: string, projectId: string) {
     return this.prisma.membership.findFirst({
@@ -162,14 +174,9 @@ export class ReleasesRepository {
     });
   }
 
-  requestReview({
-    actorUserId,
-    releaseId,
-    organizationId,
-    projectId,
-  }: RequestReviewTransactionParams) {
-    return this.prisma.$transaction(async (tx) => {
-      const release = await tx.release.update({
+  requestReview({ releaseId, auditEvent }: LifecycleTransactionParams) {
+    return this.executeTransitionWithAudit(auditEvent, (tx) =>
+      tx.release.update({
         where: {
           id: releaseId,
           deletedAt: null,
@@ -178,24 +185,8 @@ export class ReleasesRepository {
         },
         data: { status: ReleaseStatus.IN_REVIEW },
         select: updateReleaseSelect,
-      });
-
-      await this.auditRepository.createAuditEvent(tx, {
-        organizationId,
-        projectId,
-        releaseId,
-        actorUserId,
-        action: 'release.review_requested',
-        entityType: 'release',
-        entityId: releaseId,
-        metadata: {
-          fromStatus: ReleaseStatus.DRAFT,
-          toStatus: ReleaseStatus.IN_REVIEW,
-        },
-      });
-
-      return release;
-    });
+      }),
+    );
   }
 
   findReleaseReviewDecisionContext(releaseId: string) {
@@ -210,6 +201,11 @@ export class ReleasesRepository {
         environmentId: true,
         status: true,
         approvals: { select: { status: true, id: true } },
+        project: {
+          select: {
+            organizationId: true,
+          },
+        },
         checkListItems: {
           where: { isRequired: true },
           select: { status: true },
@@ -218,55 +214,59 @@ export class ReleasesRepository {
     });
   }
 
-  approveRelease(releaseId: string) {
-    return this.prisma.release.update({
-      where: {
-        id: releaseId,
-        deletedAt: null,
-        status: ReleaseStatus.IN_REVIEW,
-        project: { deletedAt: null, organization: { deletedAt: null } },
-        checkListItems: {
-          none: {
-            isRequired: true,
-            status: { not: ChecklistItemStatus.DONE },
+  approveRelease({ releaseId, auditEvent }: LifecycleTransactionParams) {
+    return this.executeTransitionWithAudit(auditEvent, (tx) =>
+      tx.release.update({
+        where: {
+          id: releaseId,
+          deletedAt: null,
+          status: ReleaseStatus.IN_REVIEW,
+          project: { deletedAt: null, organization: { deletedAt: null } },
+          checkListItems: {
+            none: {
+              isRequired: true,
+              status: { not: ChecklistItemStatus.DONE },
+            },
           },
-        },
-        approvals: {
-          some: {
-            status: ApprovalStatus.APPROVED,
-          },
-          none: {
-            status: {
-              in: [ApprovalStatus.PENDING, ApprovalStatus.REJECTED],
+          approvals: {
+            some: {
+              status: ApprovalStatus.APPROVED,
+            },
+            none: {
+              status: {
+                in: [ApprovalStatus.PENDING, ApprovalStatus.REJECTED],
+              },
             },
           },
         },
-      },
-      data: { status: ReleaseStatus.APPROVED },
-      select: updateReleaseSelect,
-    });
+        data: { status: ReleaseStatus.APPROVED },
+        select: updateReleaseSelect,
+      }),
+    );
   }
 
-  rejectRelease(releaseId: string) {
-    return this.prisma.release.update({
-      where: {
-        id: releaseId,
-        deletedAt: null,
-        status: ReleaseStatus.IN_REVIEW,
-        project: { deletedAt: null, organization: { deletedAt: null } },
-        approvals: {
-          some: {
-            status: ApprovalStatus.REJECTED,
+  rejectRelease({ releaseId, auditEvent }: LifecycleTransactionParams) {
+    return this.executeTransitionWithAudit(auditEvent, (tx) =>
+      tx.release.update({
+        where: {
+          id: releaseId,
+          deletedAt: null,
+          status: ReleaseStatus.IN_REVIEW,
+          project: { deletedAt: null, organization: { deletedAt: null } },
+          approvals: {
+            some: {
+              status: ApprovalStatus.REJECTED,
+            },
           },
         },
-      },
-      data: { status: ReleaseStatus.REJECTED },
-      select: updateReleaseSelect,
-    });
+        data: { status: ReleaseStatus.REJECTED },
+        select: updateReleaseSelect,
+      }),
+    );
   }
 
-  reopenRelease(releaseId: string) {
-    return this.prisma.$transaction(async (tx) => {
+  reopenRelease({ releaseId, auditEvent }: LifecycleTransactionParams) {
+    return this.executeTransitionWithAudit(auditEvent, async (tx) => {
       const release = await tx.release.update({
         where: {
           id: releaseId,
@@ -303,28 +303,32 @@ export class ReleasesRepository {
     });
   }
 
-  requestRelease(releaseId: string) {
-    return this.prisma.release.update({
-      where: {
-        id: releaseId,
-        deletedAt: null,
-        status: ReleaseStatus.APPROVED,
-        project: {
+  requestRelease({ releaseId, auditEvent }: LifecycleTransactionParams) {
+    return this.executeTransitionWithAudit(auditEvent, async (tx) => {
+      const release = await tx.release.update({
+        where: {
+          id: releaseId,
           deletedAt: null,
-          organization: { deletedAt: null },
-        },
-        environment: {
-          deletedAt: null,
-          isActive: true,
+          status: ReleaseStatus.APPROVED,
           project: {
-            releases: {
-              some: { id: releaseId },
+            deletedAt: null,
+            organization: { deletedAt: null },
+          },
+          environment: {
+            deletedAt: null,
+            isActive: true,
+            project: {
+              releases: {
+                some: { id: releaseId },
+              },
             },
           },
         },
-      },
-      data: { status: ReleaseStatus.RELEASED },
-      select: updateReleaseSelect,
+        data: { status: ReleaseStatus.RELEASED },
+        select: updateReleaseSelect,
+      });
+
+      return release;
     });
   }
 }

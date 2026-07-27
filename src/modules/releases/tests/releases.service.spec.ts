@@ -36,6 +36,15 @@ const userId = 'user-id';
 const creatorUserId = 'creator-user-id';
 const releaseId = 'release-id';
 
+const releaseAuditEventContext = {
+  organizationId: 'organization-id',
+  projectId: 'project-id',
+  releaseId,
+  actorUserId: userId,
+  entityType: 'release',
+  entityId: releaseId,
+};
+
 const membership = {
   id: 'membership-id',
   role: MembershipRole.OWNER,
@@ -62,6 +71,9 @@ type ReviewDecisionContextFixture = {
   projectId: string;
   environmentId: string;
   status: ReleaseStatus;
+  project: {
+    organizationId: string;
+  };
   approvals: Array<{ id: string; status: ApprovalStatus }>;
   checkListItems: Array<{ status: ChecklistItemStatus }>;
 };
@@ -97,6 +109,9 @@ const reviewDecisionContext: ReviewDecisionContextFixture = {
   projectId: 'project-id',
   environmentId: 'environment-id',
   status: ReleaseStatus.IN_REVIEW,
+  project: {
+    organizationId: 'organization-id',
+  },
   approvals: [
     {
       id: 'approval-id',
@@ -266,9 +281,14 @@ describe('ReleasesService', () => {
 
       expect(repository.requestReview).toHaveBeenCalledWith({
         releaseId,
-        actorUserId: userId,
-        organizationId: releaseContext.project.organizationId,
-        projectId: releaseContext.projectId,
+        auditEvent: {
+          ...releaseAuditEventContext,
+          action: 'release.review_requested',
+          metadata: {
+            fromStatus: ReleaseStatus.DRAFT,
+            toStatus: ReleaseStatus.IN_REVIEW,
+          },
+        },
       });
     });
 
@@ -412,7 +432,17 @@ describe('ReleasesService', () => {
 
       await service.requestApprove(approveReleaseParams);
 
-      expect(repository.approveRelease).toHaveBeenCalledWith(releaseId);
+      expect(repository.approveRelease).toHaveBeenCalledWith({
+        releaseId,
+        auditEvent: {
+          ...releaseAuditEventContext,
+          action: 'release.approved',
+          metadata: {
+            fromStatus: ReleaseStatus.IN_REVIEW,
+            toStatus: ReleaseStatus.APPROVED,
+          },
+        },
+      });
     });
 
     it('returns not found when the user is not an organization member', async () => {
@@ -554,7 +584,17 @@ describe('ReleasesService', () => {
 
       await service.requestReject(rejectReleaseParams);
 
-      expect(repository.rejectRelease).toHaveBeenCalledWith(releaseId);
+      expect(repository.rejectRelease).toHaveBeenCalledWith({
+        releaseId,
+        auditEvent: {
+          ...releaseAuditEventContext,
+          action: 'release.rejected',
+          metadata: {
+            fromStatus: ReleaseStatus.IN_REVIEW,
+            toStatus: ReleaseStatus.REJECTED,
+          },
+        },
+      });
     });
 
     it('returns not found when the user is not an organization member', async () => {
@@ -699,7 +739,18 @@ describe('ReleasesService', () => {
 
       await service.requestReopen(reopenReleaseParams);
 
-      expect(repository.reopenRelease).toHaveBeenCalledWith(releaseId);
+      expect(repository.reopenRelease).toHaveBeenCalledWith({
+        releaseId,
+        auditEvent: {
+          ...releaseAuditEventContext,
+          action: 'release.reopened',
+          metadata: {
+            fromStatus: ReleaseStatus.REJECTED,
+            toStatus: ReleaseStatus.DRAFT,
+            approvalsReset: true,
+          },
+        },
+      });
     });
 
     it('returns not found when the user is not an organization member', async () => {
@@ -817,7 +868,17 @@ describe('ReleasesService', () => {
 
       await service.requestRelease(releaseReleaseParams);
 
-      expect(repository.requestRelease).toHaveBeenCalledWith(releaseId);
+      expect(repository.requestRelease).toHaveBeenCalledWith({
+        releaseId,
+        auditEvent: {
+          ...releaseAuditEventContext,
+          action: 'release.released',
+          metadata: {
+            fromStatus: ReleaseStatus.APPROVED,
+            toStatus: ReleaseStatus.RELEASED,
+          },
+        },
+      });
     });
 
     it('returns not found when the user is not an organization member', async () => {

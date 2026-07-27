@@ -11,6 +11,7 @@ import {
 } from 'generated/prisma/enums';
 
 import { ErrorMessage } from '@common/constants/error-message';
+import type { CreateAuditEventData } from '@modules/audit/audit.types';
 import { ReleasesPolicy } from './releases.policy';
 import { ReleasesRepository } from './releases.repository';
 import type {
@@ -41,12 +42,49 @@ const disallowedApproveStatuses: ApprovalStatus[] = [
   ApprovalStatus.REJECTED,
 ];
 
+type ReleaseLifecycleAuditEventParams = {
+  releaseId: string;
+  actorUserId: string;
+  organizationId: string;
+  projectId: string;
+  action: string;
+  fromStatus: ReleaseStatus;
+  toStatus: ReleaseStatus;
+  approvalsReset?: true;
+};
+
 @Injectable()
 export class ReleasesService {
   constructor(
     private readonly releasesRepository: ReleasesRepository,
     private readonly releasesPolicy: ReleasesPolicy,
   ) {}
+
+  private buildTransitionAuditEvent({
+    releaseId,
+    actorUserId,
+    organizationId,
+    projectId,
+    action,
+    fromStatus,
+    toStatus,
+    approvalsReset,
+  }: ReleaseLifecycleAuditEventParams): CreateAuditEventData {
+    return {
+      organizationId,
+      projectId,
+      releaseId,
+      actorUserId,
+      action,
+      entityType: 'release',
+      entityId: releaseId,
+      metadata: {
+        fromStatus,
+        toStatus,
+        ...(approvalsReset && { approvalsReset: true }),
+      },
+    };
+  }
 
   async createRelease({
     userId,
@@ -273,9 +311,15 @@ export class ReleasesService {
     try {
       const updatedRelease = await this.releasesRepository.requestReview({
         releaseId,
-        actorUserId: userId,
-        organizationId: releaseContext.project.organizationId,
-        projectId: releaseContext.projectId,
+        auditEvent: this.buildTransitionAuditEvent({
+          releaseId,
+          actorUserId: userId,
+          organizationId: releaseContext.project.organizationId,
+          projectId: releaseContext.projectId,
+          action: 'release.review_requested',
+          fromStatus: ReleaseStatus.DRAFT,
+          toStatus: ReleaseStatus.IN_REVIEW,
+        }),
       });
       return updatedRelease;
     } catch (error) {
@@ -347,8 +391,18 @@ export class ReleasesService {
     }
 
     try {
-      const updatedRelease =
-        await this.releasesRepository.approveRelease(releaseId);
+      const updatedRelease = await this.releasesRepository.approveRelease({
+        releaseId,
+        auditEvent: this.buildTransitionAuditEvent({
+          releaseId,
+          actorUserId: userId,
+          organizationId: releaseContext.project.organizationId,
+          projectId: releaseContext.projectId,
+          action: 'release.approved',
+          fromStatus: ReleaseStatus.IN_REVIEW,
+          toStatus: ReleaseStatus.APPROVED,
+        }),
+      });
       return updatedRelease;
     } catch (error) {
       if (
@@ -401,8 +455,18 @@ export class ReleasesService {
     }
 
     try {
-      const updatedRelease =
-        await this.releasesRepository.rejectRelease(releaseId);
+      const updatedRelease = await this.releasesRepository.rejectRelease({
+        releaseId,
+        auditEvent: this.buildTransitionAuditEvent({
+          releaseId,
+          actorUserId: userId,
+          organizationId: releaseContext.project.organizationId,
+          projectId: releaseContext.projectId,
+          action: 'release.rejected',
+          fromStatus: ReleaseStatus.IN_REVIEW,
+          toStatus: ReleaseStatus.REJECTED,
+        }),
+      });
       return updatedRelease;
     } catch (error) {
       if (
@@ -456,8 +520,19 @@ export class ReleasesService {
     }
 
     try {
-      const updatedRelease =
-        await this.releasesRepository.reopenRelease(releaseId);
+      const updatedRelease = await this.releasesRepository.reopenRelease({
+        releaseId,
+        auditEvent: this.buildTransitionAuditEvent({
+          releaseId,
+          actorUserId: userId,
+          organizationId: reopenContext.project.organizationId,
+          projectId: reopenContext.projectId,
+          action: 'release.reopened',
+          fromStatus: ReleaseStatus.REJECTED,
+          toStatus: ReleaseStatus.DRAFT,
+          approvalsReset: true,
+        }),
+      });
 
       return updatedRelease;
     } catch (error) {
@@ -512,8 +587,18 @@ export class ReleasesService {
     }
 
     try {
-      const updatedRelease =
-        await this.releasesRepository.requestRelease(releaseId);
+      const updatedRelease = await this.releasesRepository.requestRelease({
+        releaseId,
+        auditEvent: this.buildTransitionAuditEvent({
+          releaseId,
+          actorUserId: userId,
+          organizationId: releaseContext.project.organizationId,
+          projectId: releaseContext.projectId,
+          action: 'release.released',
+          fromStatus: ReleaseStatus.APPROVED,
+          toStatus: ReleaseStatus.RELEASED,
+        }),
+      });
 
       return updatedRelease;
     } catch (error) {
