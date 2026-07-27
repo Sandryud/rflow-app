@@ -27,7 +27,7 @@ npx jest src/modules/users/tests/users.service.spec.ts --runInBand
   [`docs/templates/unit-testing-guidelines.md`](docs/templates/unit-testing-guidelines.md)
 - Architecture and implementation plan for integration tests on real PostgreSQL:
   [`docs/integration-testing.md`](docs/integration-testing.md)
-- Developer guide for the implemented integration test contour:
+- Integration testing documentation:
   [`test/integration/docs/README.md`](test/integration/docs/README.md)
 
 The integration runner starts an ephemeral PostgreSQL 16 container, applies the
