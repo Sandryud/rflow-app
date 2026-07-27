@@ -9,6 +9,9 @@ npm run start:dev
 npm run lint
 npm run typecheck
 npm run test
+npm run test:unit
+npm run test:integration
+npm run test:e2e
 ```
 
 Useful focused test examples:
@@ -17,6 +20,18 @@ Useful focused test examples:
 npx jest src/modules/auth/tests --runInBand
 npx jest src/modules/users/tests/users.service.spec.ts --runInBand
 ```
+
+## Testing
+
+- Unit testing rules:
+  [`docs/templates/unit-testing-guidelines.md`](docs/templates/unit-testing-guidelines.md)
+- Architecture and implementation plan for integration tests on real PostgreSQL:
+  [`docs/integration-testing.md`](docs/integration-testing.md)
+
+The existing files in `test/integration` currently assemble Nest modules with a
+mocked `PrismaService`. The target PostgreSQL contour and migration plan are
+documented separately so that mock-based component tests and real database
+integration tests have explicit boundaries.
 
 ## Project Structure
 
@@ -270,13 +285,13 @@ Active modules use the structure above:
 - `projects`
 - `environments`
 - `releases`
-
-Placeholder modules currently contain only a Nest module file:
-
 - `approvals`
 - `audit`
 - `checklist`
 - `comments`
+
+Placeholder modules currently contain only a Nest module file:
+
 - `memberships`
 - `notifications`
 
