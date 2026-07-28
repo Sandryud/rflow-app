@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
+import { Prisma } from 'generated/prisma/client';
 
 import { authConfig } from '@config/auth.config';
 import { PrismaService } from '@database/prisma.service';
@@ -95,6 +96,52 @@ describe('AuthService integration', () => {
 
       expect(storedUser).toStrictEqual(existingUser);
       expect(userCount).toBe(1);
+    });
+
+    it('allows one concurrent registration and rejects the other with a conflict', async () => {
+      const results = await Promise.allSettled([
+        authService.register({
+          name: 'Jane One',
+          email: 'race@example.com',
+          password: 'password-one',
+        }),
+        authService.register({
+          name: 'Jane Two',
+          email: 'race@example.com',
+          password: 'password-two',
+        }),
+      ]);
+
+      const fulfilledResults = results.filter(
+        (result) => result.status === 'fulfilled',
+      );
+      const rejectedResults = results.filter(
+        (result) => result.status === 'rejected',
+      );
+      const storedUsers = await prisma.user.findMany({
+        where: { email: 'race@example.com' },
+      });
+
+      expect(fulfilledResults).toHaveLength(1);
+      expect(rejectedResults).toHaveLength(1);
+      expect(storedUsers).toHaveLength(1);
+
+      const rejectedResult = rejectedResults[0];
+
+      if (!rejectedResult) {
+        throw new Error('Expected one rejected registration');
+      }
+
+      const rejection: unknown = rejectedResult.reason;
+
+      if (rejection instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new Error(
+          `Expected ConflictException, but received unhandled Prisma error ${rejection.code}`,
+          { cause: rejection },
+        );
+      }
+
+      expect(rejection).toBeInstanceOf(ConflictException);
     });
   });
 
