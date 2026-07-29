@@ -1,15 +1,12 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { TestingModule } from '@nestjs/testing';
-import { Test } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
 import { Prisma } from 'generated/prisma/client';
 
-import { authConfig } from '@config/auth.config';
 import { PrismaService } from '@database/prisma.service';
-import { AuthModule } from '@modules/auth/auth.module';
 import { AuthService } from '@modules/auth/auth.service';
+import { createAuthTestingModule } from './support/auth-test-app';
 import { createUser } from './support/user.factory';
 
 type VerifiedAccessToken = {
@@ -26,16 +23,7 @@ describe('AuthService integration', () => {
   let jwtService: JwtService;
 
   beforeAll(async () => {
-    moduleRef = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({
-          isGlobal: true,
-          load: [authConfig],
-        }),
-        AuthModule,
-      ],
-    }).compile();
-
+    moduleRef = await createAuthTestingModule();
     await moduleRef.init();
 
     prisma = moduleRef.get(PrismaService);
