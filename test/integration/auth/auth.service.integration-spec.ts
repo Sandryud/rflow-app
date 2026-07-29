@@ -98,7 +98,7 @@ describe('AuthService integration', () => {
       expect(userCount).toBe(1);
     });
 
-    it('allows one concurrent registration and rejects the other with a conflict', async () => {
+    it('preserves email uniqueness during concurrent registrations', async () => {
       const results = await Promise.allSettled([
         authService.register({
           name: 'Jane One',
@@ -134,14 +134,14 @@ describe('AuthService integration', () => {
 
       const rejection: unknown = rejectedResult.reason;
 
-      if (rejection instanceof Prisma.PrismaClientKnownRequestError) {
-        throw new Error(
-          `Expected ConflictException, but received unhandled Prisma error ${rejection.code}`,
-          { cause: rejection },
-        );
+      expect(rejection).toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
+
+      if (!(rejection instanceof Prisma.PrismaClientKnownRequestError)) {
+        throw new Error('Expected PrismaClientKnownRequestError');
       }
 
-      expect(rejection).toBeInstanceOf(ConflictException);
+      expect(rejection.code).toBe('P2002');
+      expect(rejection.meta?.modelName).toBe('User');
     });
   });
 
