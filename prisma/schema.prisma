@@ -31,6 +31,7 @@ model User {
   reviewerApprovals       Approval[]
   authoredComments        Comment[]
   actorAuditEvents        AuditEvent[]
+  notifications           Notification[]
 }
 
 enum MembershipRole {
@@ -55,29 +56,31 @@ model Membership {
 }
 
 model Organization {
-  id          String       @id @default(uuid())
-  name        String       @db.VarChar(100)
-  description String?      @db.VarChar(400)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  deletedAt   DateTime?
-  memberships Membership[]
-  projects    Project[]
-  auditEvents AuditEvent[]
+  id            String         @id @default(uuid())
+  name          String         @db.VarChar(100)
+  description   String?        @db.VarChar(400)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+  memberships   Membership[]
+  projects      Project[]
+  auditEvents   AuditEvent[]
+  notifications Notification[]
 }
 
 model Project {
-  id             String        @id @default(uuid())
-  name           String        @db.VarChar(100)
-  description    String?       @db.VarChar(400)
+  id             String         @id @default(uuid())
+  name           String         @db.VarChar(100)
+  description    String?        @db.VarChar(400)
   organizationId String
-  organization   Organization  @relation(fields: [organizationId], references: [id])
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
   deletedAt      DateTime?
   environments   Environment[]
   releases       Release[]
   auditEvents    AuditEvent[]
+  notifications  Notification[]
 
   @@unique([organizationId, name])
 }
@@ -128,6 +131,7 @@ model Release {
   approvals        Approval[]
   comments         Comment[]
   auditEvents      AuditEvent[]
+  notifications    Notification[]
 
   @@unique([projectId, version])
 }
@@ -233,4 +237,30 @@ model AuditEvent {
   @@index([releaseId, createdAt, id])
   @@index([projectId, createdAt, id])
   @@index([organizationId, createdAt, id])
+}
+
+model Notification {
+  id              String @id @default(uuid())
+  recipientUserId String
+  recipient       User   @relation(fields: [recipientUserId], references: [id])
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  releaseId String?
+  release   Release? @relation(fields: [releaseId], references: [id])
+
+  type      String    @db.VarChar(100)
+  title     String    @db.VarChar(100)
+  message   String    @db.VarChar(500)
+  metadata  Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([recipientUserId, createdAt, id])
+  @@index([recipientUserId, readAt, createdAt, id])
+  @@index([releaseId])
 }

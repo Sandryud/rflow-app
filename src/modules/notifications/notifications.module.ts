@@ -1,4 +1,8 @@
 import { Module } from '@nestjs/common';
 
-@Module({})
+import { PrismaModule } from '@database/prisma.module';
+
+@Module({
+  imports: [PrismaModule],
+})
 export class NotificationsModule {}
