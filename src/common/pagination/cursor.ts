@@ -3,7 +3,7 @@ type CursorParams = {
   createdAt: Date;
 };
 
-export function encodeAuditCursor({ createdAt, id }: CursorParams) {
+export function encodeCursor({ createdAt, id }: CursorParams) {
   const dateIso = new Date(createdAt).toISOString();
 
   const encodeCursor = Buffer.from(
@@ -14,7 +14,7 @@ export function encodeAuditCursor({ createdAt, id }: CursorParams) {
   return encodeCursor;
 }
 
-export function decodeAuditCursor(cursor: string): CursorParams | null {
+export function decodeCursor(cursor: string): CursorParams | null {
   try {
     const json = Buffer.from(cursor, 'base64url').toString('utf8');
 

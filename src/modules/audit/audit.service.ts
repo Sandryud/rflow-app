@@ -5,10 +5,7 @@ import {
 } from '@nestjs/common';
 
 import { ErrorMessage } from '@common/constants/error-message';
-import {
-  decodeAuditCursor,
-  encodeAuditCursor,
-} from '@common/pagination/cursor';
+import { decodeCursor, encodeCursor } from '@common/pagination/cursor';
 import { AuditRepository } from './audit.repository';
 import type {
   AuditCursorData,
@@ -37,7 +34,7 @@ export class AuditService {
     let decodedCursor: AuditCursorData | undefined;
 
     if (cursor !== undefined) {
-      const decoded = decodeAuditCursor(cursor);
+      const decoded = decodeCursor(cursor);
 
       if (decoded === null) {
         throw new BadRequestException('Invalid audit events cursor');
@@ -58,8 +55,7 @@ export class AuditService {
 
     const lastItem = items.at(-1);
 
-    const nextCursor =
-      hasNextPage && lastItem ? encodeAuditCursor(lastItem) : null;
+    const nextCursor = hasNextPage && lastItem ? encodeCursor(lastItem) : null;
 
     return { items, nextCursor };
   }

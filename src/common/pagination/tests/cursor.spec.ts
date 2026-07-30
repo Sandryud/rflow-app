@@ -1,7 +1,4 @@
-import {
-  decodeAuditCursor,
-  encodeAuditCursor,
-} from '@common/pagination/cursor';
+import { decodeCursor, encodeCursor } from '@common/pagination/cursor';
 
 const cursorData = {
   id: 'item-id',
@@ -12,9 +9,9 @@ const encodePayload = (payload: unknown) =>
   Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
 
 describe('cursor utilities', () => {
-  describe('encodeAuditCursor', () => {
+  describe('encodeCursor', () => {
     it('encodes the item id and ISO creation date', () => {
-      const cursor = encodeAuditCursor(cursorData);
+      const cursor = encodeCursor(cursorData);
       const json = Buffer.from(cursor, 'base64url').toString('utf8');
       const decoded: unknown = JSON.parse(json);
 
@@ -25,22 +22,22 @@ describe('cursor utilities', () => {
     });
 
     it('preserves cursor data through encoding and decoding', () => {
-      const cursor = encodeAuditCursor(cursorData);
+      const cursor = encodeCursor(cursorData);
 
-      const decoded = decodeAuditCursor(cursor);
+      const decoded = decodeCursor(cursor);
 
       expect(decoded).toEqual(cursorData);
     });
   });
 
-  describe('decodeAuditCursor', () => {
+  describe('decodeCursor', () => {
     it('decodes a valid cursor', () => {
       const cursor = encodePayload({
         id: cursorData.id,
         createdAt: cursorData.createdAt.toISOString(),
       });
 
-      const decoded = decodeAuditCursor(cursor);
+      const decoded = decodeCursor(cursor);
 
       expect(decoded).toEqual(cursorData);
     });
@@ -90,7 +87,7 @@ describe('cursor utilities', () => {
     ])('returns null when the decoded payload is $caseName', ({ payload }) => {
       const cursor = encodePayload(payload);
 
-      const decoded = decodeAuditCursor(cursor);
+      const decoded = decodeCursor(cursor);
 
       expect(decoded).toBeNull();
     });
@@ -98,13 +95,13 @@ describe('cursor utilities', () => {
     it('returns null when the cursor contains malformed JSON', () => {
       const cursor = Buffer.from('{invalid-json', 'utf8').toString('base64url');
 
-      const decoded = decodeAuditCursor(cursor);
+      const decoded = decodeCursor(cursor);
 
       expect(decoded).toBeNull();
     });
 
     it('returns null when the cursor is empty', () => {
-      const decoded = decodeAuditCursor('');
+      const decoded = decodeCursor('');
 
       expect(decoded).toBeNull();
     });

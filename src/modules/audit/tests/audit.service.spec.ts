@@ -1,10 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { MembershipRole } from 'generated/prisma/enums';
 
-import {
-  decodeAuditCursor,
-  encodeAuditCursor,
-} from '@common/pagination/cursor';
+import { decodeCursor, encodeCursor } from '@common/pagination/cursor';
 import type { AuditRepository } from '@modules/audit/audit.repository';
 import { AuditService } from '@modules/audit/audit.service';
 import type { AuditEventResponse } from '@modules/audit/audit.types';
@@ -161,7 +158,7 @@ describe('AuditService', () => {
 
       const result = await service.getReleaseAuditEvents(getEventsParams);
 
-      expect(decodeAuditCursor(result.nextCursor ?? '')).toEqual({
+      expect(decodeCursor(result.nextCursor ?? '')).toEqual({
         id: eventB.id,
         createdAt: eventB.createdAt,
       });
@@ -192,7 +189,7 @@ describe('AuditService', () => {
 
       await service.getReleaseAuditEvents({
         ...getEventsParams,
-        cursor: encodeAuditCursor(cursorData),
+        cursor: encodeCursor(cursorData),
       });
 
       expect(repository.findReleaseEventsPage).toHaveBeenCalledWith(
