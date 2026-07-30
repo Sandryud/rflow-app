@@ -5,7 +5,10 @@ import {
 } from '@nestjs/common';
 
 import { ErrorMessage } from '@common/constants/error-message';
-import { decodeAuditCursor, encodeAuditCursor } from './audit.cursor';
+import {
+  decodeAuditCursor,
+  encodeAuditCursor,
+} from '@common/pagination/cursor';
 import { AuditRepository } from './audit.repository';
 import type {
   AuditCursorData,

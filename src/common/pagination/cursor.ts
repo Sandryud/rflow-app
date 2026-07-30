@@ -1,6 +1,9 @@
-import type { AuditCursorData } from './audit.types';
+type CursorParams = {
+  id: string;
+  createdAt: Date;
+};
 
-export function encodeAuditCursor({ createdAt, id }: AuditCursorData) {
+export function encodeAuditCursor({ createdAt, id }: CursorParams) {
   const dateIso = new Date(createdAt).toISOString();
 
   const encodeCursor = Buffer.from(
@@ -11,7 +14,7 @@ export function encodeAuditCursor({ createdAt, id }: AuditCursorData) {
   return encodeCursor;
 }
 
-export function decodeAuditCursor(cursor: string): AuditCursorData | null {
+export function decodeAuditCursor(cursor: string): CursorParams | null {
   try {
     const json = Buffer.from(cursor, 'base64url').toString('utf8');
 

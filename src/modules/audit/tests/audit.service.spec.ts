@@ -4,7 +4,7 @@ import { MembershipRole } from 'generated/prisma/enums';
 import {
   decodeAuditCursor,
   encodeAuditCursor,
-} from '@modules/audit/audit.cursor';
+} from '@common/pagination/cursor';
 import type { AuditRepository } from '@modules/audit/audit.repository';
 import { AuditService } from '@modules/audit/audit.service';
 import type { AuditEventResponse } from '@modules/audit/audit.types';

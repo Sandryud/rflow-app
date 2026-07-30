@@ -1,19 +1,19 @@
 import {
   decodeAuditCursor,
   encodeAuditCursor,
-} from '@modules/audit/audit.cursor';
+} from '@common/pagination/cursor';
 
 const cursorData = {
-  id: 'event-id',
+  id: 'item-id',
   createdAt: new Date('2026-07-26T10:00:00.000Z'),
 };
 
 const encodePayload = (payload: unknown) =>
   Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
 
-describe('audit cursor', () => {
+describe('cursor utilities', () => {
   describe('encodeAuditCursor', () => {
-    it('encodes the event id and ISO creation date', () => {
+    it('encodes the item id and ISO creation date', () => {
       const cursor = encodeAuditCursor(cursorData);
       const json = Buffer.from(cursor, 'base64url').toString('utf8');
       const decoded: unknown = JSON.parse(json);
@@ -34,7 +34,7 @@ describe('audit cursor', () => {
   });
 
   describe('decodeAuditCursor', () => {
-    it('decodes a valid audit cursor', () => {
+    it('decodes a valid cursor', () => {
       const cursor = encodePayload({
         id: cursorData.id,
         createdAt: cursorData.createdAt.toISOString(),
