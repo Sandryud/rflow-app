@@ -1,4 +1,4 @@
-type CursorParams = {
+export type CursorParams = {
   id: string;
   createdAt: Date;
 };
